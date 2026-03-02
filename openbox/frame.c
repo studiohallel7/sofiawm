@@ -347,9 +347,9 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
         self->max_vert = self->client->max_vert;
         self->shaded = self->client->shaded;
 
+        /* Trecho 1: Forçar borda de 1px */
         if (self->decorations & OB_FRAME_DECOR_BORDER)
-            self->bwidth = self->client->undecorated ?
-                ob_rr_theme->ubwidth : ob_rr_theme->fbwidth;
+            self->bwidth = 1; /* Borda fininha de 1px do MesaSuite */
         else
             self->bwidth = 0;
 
@@ -384,8 +384,9 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   self->cbwidth_b +
                   (!self->max_horz || !self->max_vert ? self->bwidth : 0));
 
+        /* Trecho 2: Cravar os 40px de altura da barra */
         if (self->decorations & OB_FRAME_DECOR_TITLEBAR)
-            self->size.top += ob_rr_theme->title_height + self->bwidth;
+            self->size.top += 40 + self->bwidth; /* Altura cravada em 40px */
         else if (self->max_horz && self->max_vert) {
             /* A maximized and undecorated window needs a border on the
                top of the window to let the user still undecorate/unmaximize the
@@ -477,7 +478,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                                   self->cbwidth_b);
                 XMoveResizeWindow(obt_display, self->innerbrb,
                                   self->client->area.width +
-                                  self->cbwidth_l + self->cbwidth_r -
+                                  self->size.left + self->size.right -
                                   (ob_rr_theme->grip_width + self->bwidth),
                                   0,
                                   ob_rr_theme->grip_width + self->bwidth,
@@ -542,7 +543,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 if (self->decorations & OB_FRAME_DECOR_TITLEBAR) {
                     XMoveResizeWindow(obt_display, self->titlebottom,
                                       (self->max_horz ? 0 : self->bwidth),
-                                      ob_rr_theme->title_height + self->bwidth,
+                                      40 + self->bwidth,
                                       self->width,
                                       self->bwidth);
 
@@ -563,7 +564,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 XMoveResizeWindow(obt_display, self->title,
                                   (self->max_horz ? 0 : self->bwidth),
                                   self->bwidth,
-                                  self->width, ob_rr_theme->title_height);
+                                  self->width, 40);
 
                 XMapWindow(obt_display, self->title);
 
@@ -822,7 +823,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   self->client->area.width +
                   self->size.left + self->size.right,
                   (self->client->shaded ?
-                   ob_rr_theme->title_height + self->bwidth * 2:
+                   40 + self->bwidth * 2:
                    self->client->area.height +
                    self->size.top + self->size.bottom));
 
@@ -1134,168 +1135,57 @@ void frame_release_client(ObFrame *self)
     if (self->flash_timer) g_source_remove(self->flash_timer);
 }
 
-/* is there anything present between us and the label? */
-static gboolean is_button_present(ObFrame *self, const gchar *lc, gint dir) {
-    for (; *lc != '\0' && lc >= config_title_layout; lc += dir) {
-        if (*lc == ' ') continue; /* it was invalid */
-        if (*lc == 'N' && self->decorations & OB_FRAME_DECOR_ICON)
-            return TRUE;
-        if (*lc == 'D' && self->decorations & OB_FRAME_DECOR_ALLDESKTOPS)
-            return TRUE;
-        if (*lc == 'S' && self->decorations & OB_FRAME_DECOR_SHADE)
-            return TRUE;
-        if (*lc == 'I' && self->decorations & OB_FRAME_DECOR_ICONIFY)
-            return TRUE;
-        if (*lc == 'M' && self->decorations & OB_FRAME_DECOR_MAXIMIZE)
-            return TRUE;
-        if (*lc == 'C' && self->decorations & OB_FRAME_DECOR_CLOSE)
-            return TRUE;
-        if (*lc == 'L') return FALSE;
-    }
-    return FALSE;
-}
-
-static void place_button(ObFrame *self, const char *lc, gint bwidth,
-                         gint left, gint i,
-                         gint *x, gint *button_on, gint *button_x)
-{
-  if (!(*button_on = is_button_present(self, lc, i)))
-    return;
-
-  self->label_width -= bwidth;
-  if (i > 0)
-    *button_x = *x;
-  *x += i * bwidth;
-  if (i < 0) {
-    if (self->label_x <= left || *x > self->label_x) {
-      *button_x = *x;
-    } else {
-      /* the button would have been drawn on top of another button */
-      *button_on = FALSE;
-      self->label_width += bwidth;
-    }
-  }
-}
-
-static void layout_title(ObFrame *self)
-{
-    gchar *lc;
-    gint i;
-
-    const gint bwidth = ob_rr_theme->button_size + ob_rr_theme->paddingx + 1;
-    /* position of the leftmost button */
-    const gint left = ob_rr_theme->paddingx + 1;
-    /* position of the rightmost button */
-    const gint right = self->width;
-
-    /* turn them all off */
+/* Trecho 3: O Motor de Layout (Substituição Total) */
+static void layout_title(ObFrame *self){
+    /* SofiaWM: Layout raiz e cirúrgico do MesaSuite */
     self->icon_on = self->desk_on = self->shade_on = self->iconify_on =
         self->max_on = self->close_on = self->label_on = FALSE;
-    self->label_width = self->width - (ob_rr_theme->paddingx + 1) * 2;
-    self->leftmost = self->rightmost = OB_FRAME_CONTEXT_NONE;
 
-    /* figure out what's being shown, find each element's position, and the
-       width of the label
-
-       do the ones before the label, then after the label,
-       i will be +1 the first time through when working to the left,
-       and -1 the second time through when working to the right */
-    for (i = 1; i >= -1; i-=2) {
-        gint x;
-        ObFrameContext *firstcon;
-
-        if (i > 0) {
-            x = left;
-            lc = config_title_layout;
-            firstcon = &self->leftmost;
-        } else {
-            x = right;
-            lc = config_title_layout + strlen(config_title_layout)-1;
-            firstcon = &self->rightmost;
-        }
-
-        /* stop at the end of the string (or the label, which calls break) */
-        for (; *lc != '\0' && lc >= config_title_layout; lc+=i) {
-            if (*lc == 'L') {
-                if (i > 0) {
-                    self->label_on = TRUE;
-                    self->label_x = x;
-                }
-                break; /* break the for loop, do other side of label */
-            } else if (*lc == 'N') {
-                if (firstcon) *firstcon = OB_FRAME_CONTEXT_ICON;
-                /* icon is bigger than buttons */
-                place_button(self, lc, bwidth + 2, left, i, &x, &self->icon_on, &self->icon_x);
-            } else if (*lc == 'D') {
-                if (firstcon) *firstcon = OB_FRAME_CONTEXT_ALLDESKTOPS;
-                place_button(self, lc, bwidth, left, i, &x, &self->desk_on, &self->desk_x);
-            } else if (*lc == 'S') {
-                if (firstcon) *firstcon = OB_FRAME_CONTEXT_SHADE;
-                place_button(self, lc, bwidth, left, i, &x, &self->shade_on, &self->shade_x);
-            } else if (*lc == 'I') {
-                if (firstcon) *firstcon = OB_FRAME_CONTEXT_ICONIFY;
-                place_button(self, lc, bwidth, left, i, &x, &self->iconify_on, &self->iconify_x);
-            } else if (*lc == 'M') {
-                if (firstcon) *firstcon = OB_FRAME_CONTEXT_MAXIMIZE;
-                place_button(self, lc, bwidth, left, i, &x, &self->max_on, &self->max_x);
-            } else if (*lc == 'C') {
-                if (firstcon) *firstcon = OB_FRAME_CONTEXT_CLOSE;
-                place_button(self, lc, bwidth, left, i, &x, &self->close_on, &self->close_x);
-            } else
-                continue; /* don't set firstcon */
-            firstcon = NULL;
-        }
+    if (self->decorations & OB_FRAME_DECOR_TITLEBAR) {
+        self->close_on = self->iconify_on = self->max_on = self->label_on = TRUE;
     }
 
-    /* position and map the elements */
-    if (self->icon_on) {
-        XMapWindow(obt_display, self->icon);
-        XMoveWindow(obt_display, self->icon, self->icon_x,
-                    ob_rr_theme->paddingy);
-    } else
-        XUnmapWindow(obt_display, self->icon);
+    /* Medidas do PySide6 */
+    gint x = 12;              /* Margem esquerda */
+    gint btn_width = 32;      /* Largura do botão */
+    gint espacamento = 6;     /* Espaçamento entre eles */
+    gint y_offset = 5;        /* Centralizar na barra de 40px */
 
-    if (self->desk_on) {
-        XMapWindow(obt_display, self->desk);
-        XMoveWindow(obt_display, self->desk, self->desk_x,
-                    ob_rr_theme->paddingy + 1);
-    } else
-        XUnmapWindow(obt_display, self->desk);
+    /* 1. Fechar */
+    self->close_x = x;
+    XMapWindow(obt_display, self->close);
+    XMoveWindow(obt_display, self->close, self->close_x, y_offset);
+    XResizeWindow(obt_display, self->close, btn_width, 30);
+    x += btn_width + espacamento;
 
-    if (self->shade_on) {
-        XMapWindow(obt_display, self->shade);
-        XMoveWindow(obt_display, self->shade, self->shade_x,
-                    ob_rr_theme->paddingy + 1);
-    } else
-        XUnmapWindow(obt_display, self->shade);
+    /* 2. Minimizar (Iconify no X11) */
+    self->iconify_x = x;
+    XMapWindow(obt_display, self->iconify);
+    XMoveWindow(obt_display, self->iconify, self->iconify_x, y_offset);
+    XResizeWindow(obt_display, self->iconify, btn_width, 30);
+    x += btn_width + espacamento;
 
-    if (self->iconify_on) {
-        XMapWindow(obt_display, self->iconify);
-        XMoveWindow(obt_display, self->iconify, self->iconify_x,
-                    ob_rr_theme->paddingy + 1);
-    } else
-        XUnmapWindow(obt_display, self->iconify);
+    /* 3. Maximizar */
+    self->max_x = x;
+    XMapWindow(obt_display, self->max);
+    XMoveWindow(obt_display, self->max, self->max_x, y_offset);
+    XResizeWindow(obt_display, self->max, btn_width, 30);
 
-    if (self->max_on) {
-        XMapWindow(obt_display, self->max);
-        XMoveWindow(obt_display, self->max, self->max_x,
-                    ob_rr_theme->paddingy + 1);
-    } else
-        XUnmapWindow(obt_display, self->max);
-
-    if (self->close_on) {
-        XMapWindow(obt_display, self->close);
-        XMoveWindow(obt_display, self->close, self->close_x,
-                    ob_rr_theme->paddingy + 1);
-    } else
-        XUnmapWindow(obt_display, self->close);
-
-    if (self->label_on && self->label_width > 0) {
+    /* 4. Título centralizado */
+    self->label_x = x + 20; 
+    self->label_width = self->width - (self->label_x * 2); 
+    if (self->label_width > 0) {
         XMapWindow(obt_display, self->label);
-        XMoveWindow(obt_display, self->label, self->label_x,
-                    ob_rr_theme->paddingy);
-    } else
+        XMoveWindow(obt_display, self->label, self->label_x, 0);
+        XResizeWindow(obt_display, self->label, self->label_width, 40);
+    } else {
         XUnmapWindow(obt_display, self->label);
+    }
+
+    /* Oculta os botões velhos do Openbox que não usamos */
+    XUnmapWindow(obt_display, self->icon);
+    XUnmapWindow(obt_display, self->desk);
+    XUnmapWindow(obt_display, self->shade);
 }
 
 gboolean frame_next_context_from_string(gchar *names, ObFrameContext *cx)
