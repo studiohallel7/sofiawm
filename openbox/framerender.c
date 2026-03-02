@@ -42,32 +42,75 @@ void framerender_frame(ObFrame *self)
         return;
     self->need_render = FALSE;
 
-    /* 1. Cores da Borda e Áreas Internas */
     {
-        /* SofiaWM: Cores exatas do MesaSuite */
-        gulong bg_inner = RrColorPixel(RrColorParse(ob_rr_inst, "#121212"));
-        gulong border_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#1E1E1E"));
-        gulong separator_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#222222")); /* Cor da linha inferior */
+        gulong px;
 
-        /* Pintar o fundo das bordas internas e grips */
-        XSetWindowBackground(obt_display, self->backback, bg_inner);
+        px = (self->focused ?
+              RrColorPixel(ob_rr_inst, "#121212") : /* SofiaWM: Fundo escuro fixo */
+              RrColorPixel(ob_rr_inst, "#121212"));
+
+        XSetWindowBackground(obt_display, self->backback, px);
         XClearWindow(obt_display, self->backback);
-        XSetWindowBackground(obt_display, self->innerleft, bg_inner);
+        XSetWindowBackground(obt_display, self->innerleft, px);
         XClearWindow(obt_display, self->innerleft);
-        XSetWindowBackground(obt_display, self->innerright, bg_inner);
+        XSetWindowBackground(obt_display, self->innertop, px);
+        XClearWindow(obt_display, self->innertop);
+        XSetWindowBackground(obt_display, self->innerright, px);
         XClearWindow(obt_display, self->innerright);
-        XSetWindowBackground(obt_display, self->innerbottom, bg_inner);
+        XSetWindowBackground(obt_display, self->innerbottom, px);
         XClearWindow(obt_display, self->innerbottom);
+        XSetWindowBackground(obt_display, self->innerbll, px);
+        XClearWindow(obt_display, self->innerbll);
+        XSetWindowBackground(obt_display, self->innerbrr, px);
+        XClearWindow(obt_display, self->innerbrr);
+        XSetWindowBackground(obt_display, self->innerblb, px);
+        XClearWindow(obt_display, self->innerblb);
+        XSetWindowBackground(obt_display, self->innerbrb, px);
+        XClearWindow(obt_display, self->innerbrb);
 
-        /* A borda de 1px que definimos no frame.c */
-        XSetWindowBackground(obt_display, self->left, border_fix);
+        px = RrColorPixel(ob_rr_inst, "#1E1E1E"); /* SofiaWM: Borda MesaSuite */
+
+        XSetWindowBackground(obt_display, self->left, px);
         XClearWindow(obt_display, self->left);
-        XSetWindowBackground(obt_display, self->right, border_fix);
+        XSetWindowBackground(obt_display, self->right, px);
         XClearWindow(obt_display, self->right);
-        XSetWindowBackground(obt_display, self->titletop, border_fix);
-        XClearWindow(obt_display, self->titletop);
 
-        /* Aplica a cor exata da linha inferior da barra de título do interface.py */
+        XSetWindowBackground(obt_display, self->titleleft, px);
+        XClearWindow(obt_display, self->titleleft);
+        XSetWindowBackground(obt_display, self->titletop, px);
+        XClearWindow(obt_display, self->titletop);
+        XSetWindowBackground(obt_display, self->titletopleft, px);
+        XClearWindow(obt_display, self->titletopleft);
+        XSetWindowBackground(obt_display, self->titletopright, px);
+        XClearWindow(obt_display, self->titletopright);
+        XSetWindowBackground(obt_display, self->titleright, px);
+        XClearWindow(obt_display, self->titleright);
+
+        XSetWindowBackground(obt_display, self->handleleft, px);
+        XClearWindow(obt_display, self->handleleft);
+        XSetWindowBackground(obt_display, self->handletop, px);
+        XClearWindow(obt_display, self->handletop);
+        XSetWindowBackground(obt_display, self->handleright, px);
+        XClearWindow(obt_display, self->handleright);
+        XSetWindowBackground(obt_display, self->handlebottom, px);
+        XClearWindow(obt_display, self->handlebottom);
+
+        XSetWindowBackground(obt_display, self->lgripleft, px);
+        XClearWindow(obt_display, self->lgripleft);
+        XSetWindowBackground(obt_display, self->lgriptop, px);
+        XClearWindow(obt_display, self->lgriptop);
+        XSetWindowBackground(obt_display, self->lgripbottom, px);
+        XClearWindow(obt_display, self->lgripbottom);
+
+        XSetWindowBackground(obt_display, self->rgripright, px);
+        XClearWindow(obt_display, self->rgripright);
+        XSetWindowBackground(obt_display, self->rgriptop, px);
+        XClearWindow(obt_display, self->rgriptop);
+        XSetWindowBackground(obt_display, self->rgripbottom, px);
+        XClearWindow(obt_display, self->rgripbottom);
+
+        /* SofiaWM: Divisor quase invisível (MesaSuite) */
+        gulong separator_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#252525")); 
         XSetWindowBackground(obt_display, self->titlebottom, separator_fix);
         XClearWindow(obt_display, self->titlebottom);
     }
@@ -191,42 +234,74 @@ void framerender_frame(ObFrame *self)
         }
         clear = ob_rr_theme->a_clear;
 
-        /* 2. Pintura da Barra de Título e Botões */
-        /* SofiaWM: Forçar estilo plano (Flat) na barra */
-        t->surface.grad = RR_SURFACE_SOLID;
-        t->surface.primary = self->focused ? 
-            RrColorParse(ob_rr_inst, "#181818") : RrColorParse(ob_rr_inst, "#121212");
-        
-        /* Pintar o fundo da barra */
         RrPaint(t, self->title, self->width, 40);
 
-        /* Botão Fechar: Hover Vermelho #C42B1C */
-        c->surface.grad = RR_SURFACE_SOLID;
-        c->surface.primary = self->close_hover ? 
-            RrColorParse(ob_rr_inst, "#C42B1C") : RrColorParse(ob_rr_inst, "#181818");
-        
-        /* Botões Maximizar e Minimizar: Hover Cinza Escuro */
-        m->surface.grad = i->surface.grad = RR_SURFACE_SOLID;
-        m->surface.primary = self->max_hover ? 
-            RrColorParse(ob_rr_inst, "#333333") : RrColorParse(ob_rr_inst, "#181818");
-        i->surface.primary = self->iconify_hover ? 
-            RrColorParse(ob_rr_inst, "#333333") : RrColorParse(ob_rr_inst, "#181818");
+        clear->surface.parent = t;
+        clear->surface.parenty = 0;
 
-        /* Aplicar a pintura nos botões com os tamanhos que definimos */
-        RrPaint(c, self->close, 32, 30);
-        RrPaint(m, self->max, 32, 30);
-        RrPaint(i, self->iconify, 32, 30);
+        clear->surface.parentx = ob_rr_theme->grip_width;
 
-        /* Pintar o Título (Label) no canto direito conforme o layout_title */
+        RrPaint(clear, self->topresize,
+                self->width - ob_rr_theme->grip_width * 2,
+                ob_rr_theme->paddingy + 1);
+
+        clear->surface.parentx = 0;
+
+        if (ob_rr_theme->grip_width > 0)
+            RrPaint(clear, self->tltresize,
+                    ob_rr_theme->grip_width, ob_rr_theme->paddingy + 1);
+        if (40 > 0)
+            RrPaint(clear, self->tllresize,
+                    ob_rr_theme->paddingx + 1, 40);
+
+        clear->surface.parentx = self->width - ob_rr_theme->grip_width;
+
+        if (ob_rr_theme->grip_width > 0)
+            RrPaint(clear, self->trtresize,
+                    ob_rr_theme->grip_width, ob_rr_theme->paddingy + 1);
+
+        clear->surface.parentx = self->width - (ob_rr_theme->paddingx + 1);
+
+        if (40 > 0)
+            RrPaint(clear, self->trrresize,
+                    ob_rr_theme->paddingx + 1, 40);
+
+        /* set parents for any parent relative guys */
         l->surface.parent = t;
         l->surface.parentx = self->label_x;
         l->surface.parenty = 0;
-        framerender_label(self, l);
 
-        /* Oculta os elementos restantes não utilizados pelo layout nativo */
+        m->surface.parent = t;
+        m->surface.parentx = self->max_x;
+        m->surface.parenty = 3;
+
+        n->surface.parent = t;
+        n->surface.parentx = self->icon_x;
+        n->surface.parenty = 0;
+
+        i->surface.parent = t;
+        i->surface.parentx = self->iconify_x;
+        i->surface.parenty = 3;
+
+        d->surface.parent = t;
+        d->surface.parentx = self->desk_x;
+        d->surface.parenty = 3;
+
+        s->surface.parent = t;
+        s->surface.parentx = self->shade_x;
+        s->surface.parenty = 3;
+
+        c->surface.parent = t;
+        c->surface.parentx = self->close_x;
+        c->surface.parenty = 3;
+
+        framerender_label(self, l);
+        framerender_max(self, m);
         framerender_icon(self, n);
+        framerender_iconify(self, i);
         framerender_desk(self, d);
         framerender_shade(self, s);
+        framerender_close(self, c);
     }
 
     if (self->decorations & OB_FRAME_DECOR_HANDLE &&
@@ -273,45 +348,56 @@ static void framerender_label(ObFrame *self, RrAppearance *a)
 
 static void framerender_icon(ObFrame *self, RrAppearance *a)
 {
+    RrImage *icon;
+
     if (!self->icon_on) return;
-    /* Elemento ocultado pelo layout nativo SofiaWM */
-    XUnmapWindow(obt_display, self->icon);
+
+    icon = client_icon(self->client);
+
+    if (icon) {
+        RrAppearanceClearTextures(a);
+        a->texture[0].type = RR_TEXTURE_IMAGE;
+        a->texture[0].data.image.alpha = 0xff;
+        a->texture[0].data.image.image = icon;
+    } else {
+        RrAppearanceClearTextures(a);
+        a->texture[0].type = RR_TEXTURE_NONE;
+    }
+
+    RrPaint(a, self->icon,
+            ob_rr_theme->button_size + 2, ob_rr_theme->button_size + 2);
 }
 
-static void framerender_max(ObFrame *self, RrAppearance *a){
+static void framerender_max(ObFrame *self, RrAppearance *a) {
     if (!self->max_on) return;
-    /* SofiaWM: Força o símbolo de maximizar do MesaSuite */
     a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "◻"; 
-    RrPaint(a, self->max, 32, 30);
+    a->texture[0].data.text.string = "▢"; /* Quadrado com contorno mais visível */
+    RrPaint(a, self->max, 36, 34);
 }
 
-static void framerender_iconify(ObFrame *self, RrAppearance *a){
+static void framerender_iconify(ObFrame *self, RrAppearance *a) {
     if (!self->iconify_on) return;
-    /* SofiaWM: Força o símbolo de minimizar */
     a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "─";
-    RrPaint(a, self->iconify, 32, 30);
+    a->texture[0].data.text.string = "—"; /* Em-dash (travessão) é mais imponente que o hífen */
+    RrPaint(a, self->iconify, 36, 34);
 }
 
 static void framerender_desk(ObFrame *self, RrAppearance *a)
 {
     if (!self->desk_on) return;
-    /* Elemento ocultado pelo layout nativo SofiaWM */
-    XUnmapWindow(obt_display, self->desk);
+    RrPaint(a, self->desk, ob_rr_theme->button_size, ob_rr_theme->button_size);
 }
 
 static void framerender_shade(ObFrame *self, RrAppearance *a)
 {
     if (!self->shade_on) return;
-    /* Elemento ocultado pelo layout nativo SofiaWM */
-    XUnmapWindow(obt_display, self->shade);
+    RrPaint(a, self->shade,
+            ob_rr_theme->button_size, ob_rr_theme->button_size);
 }
 
-static void framerender_close(ObFrame *self, RrAppearance *a){
+static void framerender_close(ObFrame *self, RrAppearance *a) {
     if (!self->close_on) return;
-    /* SofiaWM: Força o símbolo de fechar */
     a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "✕";
-    RrPaint(a, self->close, 32, 30);
+    a->texture[0].data.text.string = "✕"; 
+    RrPaint(a, self->close, 36, 34);
 }
