@@ -347,20 +347,13 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
         self->max_vert = self->client->max_vert;
         self->shaded = self->client->shaded;
 
-        /* Trecho 1: Forçar borda de 1px */
+        /* SofiaWM: Remove qualquer padding interno para visual Flat total */
+        self->cbwidth_l = self->cbwidth_r = self->cbwidth_t = self->cbwidth_b = 0;
+
         if (self->decorations & OB_FRAME_DECOR_BORDER)
             self->bwidth = 1; /* Borda fininha de 1px do MesaSuite */
         else
             self->bwidth = 0;
-
-        if (self->decorations & OB_FRAME_DECOR_BORDER &&
-            !self->client->undecorated)
-        {
-            self->cbwidth_l = self->cbwidth_r = ob_rr_theme->cbwidthx;
-            self->cbwidth_t = self->cbwidth_b = ob_rr_theme->cbwidthy;
-        } else
-            self->cbwidth_l = self->cbwidth_t =
-                self->cbwidth_r = self->cbwidth_b = 0;
 
         if (self->max_horz) {
             self->cbwidth_l = self->cbwidth_r = 0;
@@ -384,7 +377,6 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   self->cbwidth_b +
                   (!self->max_horz || !self->max_vert ? self->bwidth : 0));
 
-        /* Trecho 2: Cravar os 40px de altura da barra */
         if (self->decorations & OB_FRAME_DECOR_TITLEBAR)
             self->size.top += 40 + self->bwidth; /* Altura cravada em 40px */
         else if (self->max_horz && self->max_vert) {
@@ -478,7 +470,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                                   self->cbwidth_b);
                 XMoveResizeWindow(obt_display, self->innerbrb,
                                   self->client->area.width +
-                                  self->cbwidth_l + self->cbwidth_r -
+                                  self->size.left + self->size.right -
                                   (ob_rr_theme->grip_width + self->bwidth),
                                   0,
                                   ob_rr_theme->grip_width + self->bwidth,
@@ -849,9 +841,9 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                               self->area.width,
                               self->area.height);
 
-        /* when the client has StaticGravity, it likes to move around.
-           also this correctly positions the client when it maps.
-           this also needs to be run when the frame's decorations sizes change!
+        /* quando o cliente tem StaticGravity, ele gosta de se mover.
+           isso também posiciona o cliente corretamente quando ele mapeia.
+           isso também precisa ser executado quando o tamanho da moldura muda!
         */
         XMoveWindow(obt_display, self->client->window,
                     self->size.left, self->size.top);
