@@ -194,7 +194,6 @@ void framerender_frame(ObFrame *self)
 
         clear->surface.parent = t;
         clear->surface.parenty = 0;
-
         clear->surface.parentx = ob_rr_theme->grip_width;
 
         RrPaint(clear, self->topresize,
@@ -206,9 +205,8 @@ void framerender_frame(ObFrame *self)
         if (ob_rr_theme->grip_width > 0)
             RrPaint(clear, self->tltresize,
                     ob_rr_theme->grip_width, ob_rr_theme->paddingy + 1);
-        if (40 > 0)
-            RrPaint(clear, self->tllresize,
-                    ob_rr_theme->paddingx + 1, 40);
+        
+        RrPaint(clear, self->tllresize, ob_rr_theme->paddingx + 1, 40);
 
         clear->surface.parentx = self->width - ob_rr_theme->grip_width;
 
@@ -217,10 +215,7 @@ void framerender_frame(ObFrame *self)
                     ob_rr_theme->grip_width, ob_rr_theme->paddingy + 1);
 
         clear->surface.parentx = self->width - (ob_rr_theme->paddingx + 1);
-
-        if (40 > 0)
-            RrPaint(clear, self->trrresize,
-                    ob_rr_theme->paddingx + 1, 40);
+        RrPaint(clear, self->trrresize, ob_rr_theme->paddingx + 1, 40);
 
         /* set parents for any parent relative guys */
         l->surface.parent = t;
@@ -264,30 +259,19 @@ void framerender_frame(ObFrame *self)
         ob_rr_theme->handle_height > 0)
     {
         RrAppearance *h, *g;
-
-        h = (self->focused ?
-             ob_rr_theme->a_focused_handle : ob_rr_theme->a_unfocused_handle);
-
+        h = (self->focused ? ob_rr_theme->a_focused_handle : ob_rr_theme->a_unfocused_handle);
         RrPaint(h, self->handle, self->width, ob_rr_theme->handle_height);
 
         if (self->decorations & OB_FRAME_DECOR_GRIPS) {
-            g = (self->focused ?
-                 ob_rr_theme->a_focused_grip : ob_rr_theme->a_unfocused_grip);
-
+            g = (self->focused ? ob_rr_theme->a_focused_grip : ob_rr_theme->a_unfocused_grip);
             if (g->surface.grad == RR_SURFACE_PARENTREL)
                 g->surface.parent = h;
-
             g->surface.parentx = 0;
             g->surface.parenty = 0;
-
-            RrPaint(g, self->lgrip,
-                    ob_rr_theme->grip_width, ob_rr_theme->handle_height);
-
+            RrPaint(g, self->lgrip, ob_rr_theme->grip_width, ob_rr_theme->handle_height);
             g->surface.parentx = self->width - ob_rr_theme->grip_width;
             g->surface.parenty = 0;
-
-            RrPaint(g, self->rgrip,
-                    ob_rr_theme->grip_width, ob_rr_theme->handle_height);
+            RrPaint(g, self->rgrip, ob_rr_theme->grip_width, ob_rr_theme->handle_height);
         }
     }
 
@@ -297,7 +281,6 @@ void framerender_frame(ObFrame *self)
 static void framerender_label(ObFrame *self, RrAppearance *a)
 {
     if (!self->label_on) return;
-    /* set the texture's text! */
     a->texture[0].data.text.string = self->client->title;
     RrPaint(a, self->label, self->label_width, 40);
 }
@@ -305,11 +288,8 @@ static void framerender_label(ObFrame *self, RrAppearance *a)
 static void framerender_icon(ObFrame *self, RrAppearance *a)
 {
     RrImage *icon;
-
     if (!self->icon_on) return;
-
     icon = client_icon(self->client);
-
     if (icon) {
         RrAppearanceClearTextures(a);
         a->texture[0].type = RR_TEXTURE_IMAGE;
@@ -319,25 +299,30 @@ static void framerender_icon(ObFrame *self, RrAppearance *a)
         RrAppearanceClearTextures(a);
         a->texture[0].type = RR_TEXTURE_NONE;
     }
-
-    RrPaint(a, self->icon,
-            ob_rr_theme->button_size + 2, ob_rr_theme->button_size + 2);
+    RrPaint(a, self->icon, ob_rr_theme->button_size + 2, ob_rr_theme->button_size + 2);
 }
 
 static void framerender_max(ObFrame *self, RrAppearance *a) {
     if (!self->max_on) return;
-    a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "▢"; 
-    /* SofiaWM: Copia a fonte do label para o botão compilar e renderizar */
-    a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
+    if (ob_rr_inst && ob_rr_theme && ob_rr_theme->a_focused_label && ob_rr_theme->a_focused_label->texture[0].data.text.font) {
+        a->texture[0].type = RR_TEXTURE_TEXT;
+        a->texture[0].data.text.string = "▢";
+        a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
+    } else {
+        a->texture[0].type = RR_TEXTURE_NONE;
+    }
     RrPaint(a, self->max, 36, 34);
 }
 
 static void framerender_iconify(ObFrame *self, RrAppearance *a) {
     if (!self->iconify_on) return;
-    a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "—";
-    a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
+    if (ob_rr_inst && ob_rr_theme && ob_rr_theme->a_focused_label && ob_rr_theme->a_focused_label->texture[0].data.text.font) {
+        a->texture[0].type = RR_TEXTURE_TEXT;
+        a->texture[0].data.text.string = "—";
+        a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
+    } else {
+        a->texture[0].type = RR_TEXTURE_NONE;
+    }
     RrPaint(a, self->iconify, 36, 34);
 }
 
@@ -350,14 +335,17 @@ static void framerender_desk(ObFrame *self, RrAppearance *a)
 static void framerender_shade(ObFrame *self, RrAppearance *a)
 {
     if (!self->shade_on) return;
-    RrPaint(a, self->shade,
-            ob_rr_theme->button_size, ob_rr_theme->button_size);
+    RrPaint(a, self->shade, ob_rr_theme->button_size, ob_rr_theme->button_size);
 }
 
 static void framerender_close(ObFrame *self, RrAppearance *a) {
     if (!self->close_on) return;
-    a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "✕"; 
-    a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
+    if (ob_rr_inst && ob_rr_theme && ob_rr_theme->a_focused_label && ob_rr_theme->a_focused_label->texture[0].data.text.font) {
+        a->texture[0].type = RR_TEXTURE_TEXT;
+        a->texture[0].data.text.string = "✕";
+        a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
+    } else {
+        a->texture[0].type = RR_TEXTURE_NONE;
+    }
     RrPaint(a, self->close, 36, 34);
 }
