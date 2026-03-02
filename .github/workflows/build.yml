@@ -26,8 +26,11 @@ jobs:
         ./configure
         make -j$(nproc)
 
-    - name: Salvar o binário Real (Artifact)
+    - name: Salvar Binário e Bibliotecas (Artifact)
       uses: actions/upload-artifact@v4
       with:
         name: sofiawm-bin
-        path: openbox/.libs/openbox
+        path: |
+          openbox/.libs/openbox
+          obrender/.libs/libobrender.so*
+          obt/.libs/libobt.so*
