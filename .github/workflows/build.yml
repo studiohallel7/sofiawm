@@ -1,0 +1,33 @@
+name: Compilar SofiaWM (Openbox Fork)
+
+on:
+  push:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clonar o repositório
+      uses: actions/checkout@v4
+
+    - name: Instalar dependências do X11 e C
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential autoconf automake libtool pkg-config \
+        libx11-dev libxft-dev libxext-dev libxml2-dev libxrender-dev \
+        libxrandr-dev libxcursor-dev libxinerama-dev libpango1.0-dev \
+        libimlib2-dev libglib2.0-dev
+
+    - name: Configurar e Compilar
+      run: |
+        ./bootstrap || true
+        ./configure
+        make -j$(nproc)
+
+    - name: Salvar o binário (Artifact)
+      uses: actions/upload-artifact@v4
+      with:
+        name: sofiawm-bin
+        path: openbox/openbox
