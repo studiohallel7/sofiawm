@@ -44,9 +44,10 @@ void framerender_frame(ObFrame *self)
 
     /* 1. Cores da Borda e Áreas Internas */
     {
-        /* SofiaWM: Cores fixas do MesaSuite */
+        /* SofiaWM: Cores exatas do MesaSuite */
         gulong bg_inner = RrColorPixel(RrColorParse(ob_rr_inst, "#121212"));
         gulong border_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#1E1E1E"));
+        gulong separator_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#222222")); /* Cor da linha inferior */
 
         /* Pintar o fundo das bordas internas e grips */
         XSetWindowBackground(obt_display, self->backback, bg_inner);
@@ -65,7 +66,9 @@ void framerender_frame(ObFrame *self)
         XClearWindow(obt_display, self->right);
         XSetWindowBackground(obt_display, self->titletop, border_fix);
         XClearWindow(obt_display, self->titletop);
-        XSetWindowBackground(obt_display, self->titlebottom, border_fix);
+
+        /* Aplica a cor exata da linha inferior da barra de título do interface.py */
+        XSetWindowBackground(obt_display, self->titlebottom, separator_fix);
         XClearWindow(obt_display, self->titlebottom);
     }
 
