@@ -351,8 +351,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
         self->cbwidth_l = self->cbwidth_r = self->cbwidth_t = self->cbwidth_b = 0;
 
         if (self->decorations & OB_FRAME_DECOR_BORDER)
-            self->bwidth = self->client->undecorated ?
-                ob_rr_theme->ubwidth : ob_rr_theme->fbwidth;
+            self->bwidth = 1; /* Borda MesaSuite */
         else
             self->bwidth = 0;
 
@@ -379,7 +378,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   (!self->max_horz || !self->max_vert ? self->bwidth : 0));
 
         if (self->decorations & OB_FRAME_DECOR_TITLEBAR)
-            self->size.top += ob_rr_theme->title_height + self->bwidth;
+            self->size.top += 40 + self->bwidth; /* Altura 40px */
         else if (self->max_horz && self->max_vert) {
             /* A maximized and undecorated window needs a border on the
                top of the window to let the user still undecorate/unmaximize the
@@ -471,7 +470,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                                   self->cbwidth_b);
                 XMoveResizeWindow(obt_display, self->innerbrb,
                                   self->client->area.width +
-                                  self->cbwidth_l + self->cbwidth_r -
+                                  self->size.left + self->size.right -
                                   (ob_rr_theme->grip_width + self->bwidth),
                                   0,
                                   ob_rr_theme->grip_width + self->bwidth,
@@ -536,7 +535,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 if (self->decorations & OB_FRAME_DECOR_TITLEBAR) {
                     XMoveResizeWindow(obt_display, self->titlebottom,
                                       (self->max_horz ? 0 : self->bwidth),
-                                      ob_rr_theme->title_height + self->bwidth,
+                                      40 + self->bwidth,
                                       self->width,
                                       self->bwidth);
 
@@ -557,7 +556,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 XMoveResizeWindow(obt_display, self->title,
                                   (self->max_horz ? 0 : self->bwidth),
                                   self->bwidth,
-                                  self->width, ob_rr_theme->title_height);
+                                  self->width, 40);
 
                 XMapWindow(obt_display, self->title);
 
@@ -816,7 +815,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   self->client->area.width +
                   self->size.left + self->size.right,
                   (self->client->shaded ?
-                   ob_rr_theme->title_height + self->bwidth * 2:
+                   40 + self->bwidth * 2:
                    self->client->area.height +
                    self->size.top + self->size.bottom));
 
@@ -842,9 +841,9 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                               self->area.width,
                               self->area.height);
 
-        /* when the client has StaticGravity, it likes to move around.
-           also this correctly positions the client when it maps.
-           this also needs to be run when the frame's decorations sizes change!
+        /* quando o cliente tem StaticGravity, ele gosta de se mover.
+           isso também posiciona o cliente corretamente quando ele mapeia.
+           isso também precisa ser executado quando o tamanho da moldura muda!
         */
         XMoveWindow(obt_display, self->client->window,
                     self->size.left, self->size.top);
@@ -1129,7 +1128,6 @@ void frame_release_client(ObFrame *self)
 }
 
 static void layout_title(ObFrame *self){
-    /* SofiaWM: Layout nativo MesaSuite (Botões Esquerda / Título Direita) */
     self->icon_on = self->desk_on = self->shade_on = self->iconify_on =
         self->max_on = self->close_on = self->label_on = FALSE;
 
@@ -1137,50 +1135,36 @@ static void layout_title(ObFrame *self){
         self->close_on = self->iconify_on = self->max_on = self->label_on = TRUE;
     }
 
-    /* SofiaWM: Botões maiores e centralizados */
+    /* SofiaWM: Geometria robusta do MesaSuite */
     gint x = 12;              
-    gint btn_width = 36;      /* Aumentamos de 32 para 36 */
-    gint btn_height = 34;     /* Altura para preencher quase tudo */
-    gint y_offset = 3;        /* 3(top) + 34(btn) + 3(bottom) = 40px */
-    gint espacamento = 4;     
+    gint btn_w = 36;          
+    gint btn_h = 34;          
+    gint y_off = 3;           
 
-    /* Aplicar para Fechar, Minimizar e Maximizar */
+    /* Posicionamento dos botões na esquerda */
     self->close_x = x;
-    XMoveResizeWindow(obt_display, self->close, self->close_x, y_offset, btn_width, btn_height);
-    x += btn_width + espacamento;
+    XMapWindow(obt_display, self->close);
+    XMoveResizeWindow(obt_display, self->close, self->close_x, y_off, btn_w, btn_h);
+    x += btn_w + 4;
 
     self->iconify_x = x;
-    XMoveResizeWindow(obt_display, self->iconify, self->iconify_x, y_offset, btn_width, btn_height);
-    x += btn_width + espacamento;
+    XMapWindow(obt_display, self->iconify);
+    XMoveResizeWindow(obt_display, self->iconify, self->iconify_x, y_off, btn_w, btn_h);
+    x += btn_w + 4;
 
     self->max_x = x;
-    XMoveResizeWindow(obt_display, self->max, self->max_x, y_offset, btn_width, btn_height);
-    x += btn_width + espacamento;
+    XMapWindow(obt_display, self->max);
+    XMoveResizeWindow(obt_display, self->max, self->max_x, y_off, btn_w, btn_h);
 
-    /* 4. Nome da Janela (Label) empurrado para a Direita */
-    gint margem_direita = 16;
-    gint label_largura_maxima = 300; /* Define um tamanho razoável pro texto não espremer os botões */
-    
-    /* Garante que o texto não invada os botões em janelas muito estreitas */
-    if (self->width > (x + label_largura_maxima + margem_direita)) {
-        self->label_width = label_largura_maxima;
-    } else {
-        self->label_width = self->width - x - margem_direita;
-    }
-
-    /* Ancorando na direita: Largura total da janela - largura do label - margem */
-    self->label_x = self->width - self->label_width - margem_direita;
+    /* Título ancorado na direita */
+    self->label_width = 250; 
+    self->label_x = self->width - self->label_width - 16;
 
     if (self->label_width > 0) {
         XMapWindow(obt_display, self->label);
-        XMoveWindow(obt_display, self->label, self->label_x, 0);
-        /* Mantemos a altura da label em 40px pra alinhar o texto no centro verticalmente */
-        XResizeWindow(obt_display, self->label, self->label_width, 40); 
-    } else {
-        XUnmapWindow(obt_display, self->label);
+        XMoveResizeWindow(obt_display, self->label, self->label_x, 0, self->label_width, 40);
     }
 
-    /* Oculta os botões velhos do Openbox que a gente não usa no MesaSuite */
     XUnmapWindow(obt_display, self->icon);
     XUnmapWindow(obt_display, self->desk);
     XUnmapWindow(obt_display, self->shade);
