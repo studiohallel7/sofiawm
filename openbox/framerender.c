@@ -43,74 +43,30 @@ void framerender_frame(ObFrame *self)
     self->need_render = FALSE;
 
     {
-        gulong px;
+        /* SofiaWM: Cores fixas do MesaSuite corrigidas */
+        gulong bg_inner = RrColorPixel(RrColorParse(ob_rr_inst, "#121212"));
+        gulong border_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#1E1E1E"));
+        gulong separator_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#252525"));
 
-        px = (self->focused ?
-              RrColorPixel(ob_rr_inst, "#121212") : /* SofiaWM: Fundo escuro fixo */
-              RrColorPixel(ob_rr_inst, "#121212"));
-
-        XSetWindowBackground(obt_display, self->backback, px);
+        /* Pintar o fundo das bordas internas e grips */
+        XSetWindowBackground(obt_display, self->backback, bg_inner);
         XClearWindow(obt_display, self->backback);
-        XSetWindowBackground(obt_display, self->innerleft, px);
+        XSetWindowBackground(obt_display, self->innerleft, bg_inner);
         XClearWindow(obt_display, self->innerleft);
-        XSetWindowBackground(obt_display, self->innertop, px);
-        XClearWindow(obt_display, self->innertop);
-        XSetWindowBackground(obt_display, self->innerright, px);
+        XSetWindowBackground(obt_display, self->innerright, bg_inner);
         XClearWindow(obt_display, self->innerright);
-        XSetWindowBackground(obt_display, self->innerbottom, px);
+        XSetWindowBackground(obt_display, self->innerbottom, bg_inner);
         XClearWindow(obt_display, self->innerbottom);
-        XSetWindowBackground(obt_display, self->innerbll, px);
-        XClearWindow(obt_display, self->innerbll);
-        XSetWindowBackground(obt_display, self->innerbrr, px);
-        XClearWindow(obt_display, self->innerbrr);
-        XSetWindowBackground(obt_display, self->innerblb, px);
-        XClearWindow(obt_display, self->innerblb);
-        XSetWindowBackground(obt_display, self->innerbrb, px);
-        XClearWindow(obt_display, self->innerbrb);
 
-        px = RrColorPixel(ob_rr_inst, "#1E1E1E"); /* SofiaWM: Borda MesaSuite */
-
-        XSetWindowBackground(obt_display, self->left, px);
+        /* A borda de 1px */
+        XSetWindowBackground(obt_display, self->left, border_fix);
         XClearWindow(obt_display, self->left);
-        XSetWindowBackground(obt_display, self->right, px);
+        XSetWindowBackground(obt_display, self->right, border_fix);
         XClearWindow(obt_display, self->right);
-
-        XSetWindowBackground(obt_display, self->titleleft, px);
-        XClearWindow(obt_display, self->titleleft);
-        XSetWindowBackground(obt_display, self->titletop, px);
+        XSetWindowBackground(obt_display, self->titletop, border_fix);
         XClearWindow(obt_display, self->titletop);
-        XSetWindowBackground(obt_display, self->titletopleft, px);
-        XClearWindow(obt_display, self->titletopleft);
-        XSetWindowBackground(obt_display, self->titletopright, px);
-        XClearWindow(obt_display, self->titletopright);
-        XSetWindowBackground(obt_display, self->titleright, px);
-        XClearWindow(obt_display, self->titleright);
-
-        XSetWindowBackground(obt_display, self->handleleft, px);
-        XClearWindow(obt_display, self->handleleft);
-        XSetWindowBackground(obt_display, self->handletop, px);
-        XClearWindow(obt_display, self->handletop);
-        XSetWindowBackground(obt_display, self->handleright, px);
-        XClearWindow(obt_display, self->handleright);
-        XSetWindowBackground(obt_display, self->handlebottom, px);
-        XClearWindow(obt_display, self->handlebottom);
-
-        XSetWindowBackground(obt_display, self->lgripleft, px);
-        XClearWindow(obt_display, self->lgripleft);
-        XSetWindowBackground(obt_display, self->lgriptop, px);
-        XClearWindow(obt_display, self->lgriptop);
-        XSetWindowBackground(obt_display, self->lgripbottom, px);
-        XClearWindow(obt_display, self->lgripbottom);
-
-        XSetWindowBackground(obt_display, self->rgripright, px);
-        XClearWindow(obt_display, self->rgripright);
-        XSetWindowBackground(obt_display, self->rgriptop, px);
-        XClearWindow(obt_display, self->rgriptop);
-        XSetWindowBackground(obt_display, self->rgripbottom, px);
-        XClearWindow(obt_display, self->rgripbottom);
-
-        /* SofiaWM: Divisor quase invisível (MesaSuite) */
-        gulong separator_fix = RrColorPixel(RrColorParse(ob_rr_inst, "#252525")); 
+        
+        /* O divisor inferior */
         XSetWindowBackground(obt_display, self->titlebottom, separator_fix);
         XClearWindow(obt_display, self->titlebottom);
     }
@@ -371,14 +327,17 @@ static void framerender_icon(ObFrame *self, RrAppearance *a)
 static void framerender_max(ObFrame *self, RrAppearance *a) {
     if (!self->max_on) return;
     a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "▢"; /* Quadrado com contorno mais visível */
+    a->texture[0].data.text.string = "▢"; 
+    /* SofiaWM: Copia a fonte do label para o botão compilar e renderizar */
+    a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
     RrPaint(a, self->max, 36, 34);
 }
 
 static void framerender_iconify(ObFrame *self, RrAppearance *a) {
     if (!self->iconify_on) return;
     a->texture[0].type = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string = "—"; /* Em-dash (travessão) é mais imponente que o hífen */
+    a->texture[0].data.text.string = "—";
+    a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
     RrPaint(a, self->iconify, 36, 34);
 }
 
@@ -399,5 +358,6 @@ static void framerender_close(ObFrame *self, RrAppearance *a) {
     if (!self->close_on) return;
     a->texture[0].type = RR_TEXTURE_TEXT;
     a->texture[0].data.text.string = "✕"; 
+    a->texture[0].data.text.font = ob_rr_theme->a_focused_label->texture[0].data.text.font;
     RrPaint(a, self->close, 36, 34);
 }
