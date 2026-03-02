@@ -26,11 +26,16 @@ jobs:
         ./configure
         make -j$(nproc)
 
-    - name: Salvar Binário e Bibliotecas (Artifact)
+    - name: Organizar Pacote SofiaWM
+      run: |
+        mkdir dist
+        # Copia o binário real e as bibliotecas operadas para a pasta dist
+        cp openbox/.libs/openbox dist/sofiawm
+        cp obrender/.libs/libobrender.so* dist/
+        cp obt/.libs/libobt.so* dist/
+
+    - name: Salvar Pacote Completo (Artifact)
       uses: actions/upload-artifact@v4
       with:
         name: sofiawm-bin
-        path: |
-          openbox/.libs/openbox
-          obrender/.libs/libobrender.so*
-          obt/.libs/libobt.so*
+        path: dist/
