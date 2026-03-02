@@ -351,7 +351,8 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
         self->cbwidth_l = self->cbwidth_r = self->cbwidth_t = self->cbwidth_b = 0;
 
         if (self->decorations & OB_FRAME_DECOR_BORDER)
-            self->bwidth = 1; /* Borda fininha de 1px do MesaSuite */
+            self->bwidth = self->client->undecorated ?
+                ob_rr_theme->ubwidth : ob_rr_theme->fbwidth;
         else
             self->bwidth = 0;
 
@@ -378,7 +379,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   (!self->max_horz || !self->max_vert ? self->bwidth : 0));
 
         if (self->decorations & OB_FRAME_DECOR_TITLEBAR)
-            self->size.top += 40 + self->bwidth; /* Altura cravada em 40px */
+            self->size.top += ob_rr_theme->title_height + self->bwidth;
         else if (self->max_horz && self->max_vert) {
             /* A maximized and undecorated window needs a border on the
                top of the window to let the user still undecorate/unmaximize the
@@ -470,7 +471,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                                   self->cbwidth_b);
                 XMoveResizeWindow(obt_display, self->innerbrb,
                                   self->client->area.width +
-                                  self->size.left + self->size.right -
+                                  self->cbwidth_l + self->cbwidth_r -
                                   (ob_rr_theme->grip_width + self->bwidth),
                                   0,
                                   ob_rr_theme->grip_width + self->bwidth,
@@ -535,7 +536,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 if (self->decorations & OB_FRAME_DECOR_TITLEBAR) {
                     XMoveResizeWindow(obt_display, self->titlebottom,
                                       (self->max_horz ? 0 : self->bwidth),
-                                      40 + self->bwidth,
+                                      ob_rr_theme->title_height + self->bwidth,
                                       self->width,
                                       self->bwidth);
 
@@ -556,7 +557,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                 XMoveResizeWindow(obt_display, self->title,
                                   (self->max_horz ? 0 : self->bwidth),
                                   self->bwidth,
-                                  self->width, 40);
+                                  self->width, ob_rr_theme->title_height);
 
                 XMapWindow(obt_display, self->title);
 
@@ -815,7 +816,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                   self->client->area.width +
                   self->size.left + self->size.right,
                   (self->client->shaded ?
-                   40 + self->bwidth * 2:
+                   ob_rr_theme->title_height + self->bwidth * 2:
                    self->client->area.height +
                    self->size.top + self->size.bottom));
 
@@ -841,9 +842,9 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                               self->area.width,
                               self->area.height);
 
-        /* quando o cliente tem StaticGravity, ele gosta de se mover.
-           isso também posiciona o cliente corretamente quando ele mapeia.
-           isso também precisa ser executado quando o tamanho da moldura muda!
+        /* when the client has StaticGravity, it likes to move around.
+           also this correctly positions the client when it maps.
+           this also needs to be run when the frame's decorations sizes change!
         */
         XMoveWindow(obt_display, self->client->window,
                     self->size.left, self->size.top);
@@ -1136,30 +1137,24 @@ static void layout_title(ObFrame *self){
         self->close_on = self->iconify_on = self->max_on = self->label_on = TRUE;
     }
 
-    gint x = 12;              /* Margem esquerda inicial */
-    gint btn_width = 32;      /* Largura de cada botão */
-    gint espacamento = 6;     /* Espaçamento entre os botões */
-    gint y_offset = 5;        /* Centralizar botões na barra de 40px */
+    /* SofiaWM: Botões maiores e centralizados */
+    gint x = 12;              
+    gint btn_width = 36;      /* Aumentamos de 32 para 36 */
+    gint btn_height = 34;     /* Altura para preencher quase tudo */
+    gint y_offset = 3;        /* 3(top) + 34(btn) + 3(bottom) = 40px */
+    gint espacamento = 4;     
 
-    /* 1. Fechar (Colado na esquerda) */
+    /* Aplicar para Fechar, Minimizar e Maximizar */
     self->close_x = x;
-    XMapWindow(obt_display, self->close);
-    XMoveWindow(obt_display, self->close, self->close_x, y_offset);
-    XResizeWindow(obt_display, self->close, btn_width, 30);
+    XMoveResizeWindow(obt_display, self->close, self->close_x, y_offset, btn_width, btn_height);
     x += btn_width + espacamento;
 
-    /* 2. Minimizar */
     self->iconify_x = x;
-    XMapWindow(obt_display, self->iconify);
-    XMoveWindow(obt_display, self->iconify, self->iconify_x, y_offset);
-    XResizeWindow(obt_display, self->iconify, btn_width, 30);
+    XMoveResizeWindow(obt_display, self->iconify, self->iconify_x, y_offset, btn_width, btn_height);
     x += btn_width + espacamento;
 
-    /* 3. Maximizar */
     self->max_x = x;
-    XMapWindow(obt_display, self->max);
-    XMoveWindow(obt_display, self->max, self->max_x, y_offset);
-    XResizeWindow(obt_display, self->max, btn_width, 30);
+    XMoveResizeWindow(obt_display, self->max, self->max_x, y_offset, btn_width, btn_height);
     x += btn_width + espacamento;
 
     /* 4. Nome da Janela (Label) empurrado para a Direita */
