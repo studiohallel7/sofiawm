@@ -10,7 +10,7 @@ jobs:
 
     steps:
     - name: Clonar o repositório
-      uses: actions/checkout@v4
+      uses: uses/checkout@v4
 
     - name: Instalar dependências do X11 e C
       run: |
@@ -30,4 +30,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: sofiawm-bin
-        path: openbox/openbox
+        path: openbox/.libs/openbox  # <--- Caminho para o binário real
