@@ -18,11 +18,11 @@ jobs:
         sudo apt-get install -y build-essential autoconf automake libtool pkg-config \
         libx11-dev libxft-dev libxext-dev libxml2-dev libxrender-dev \
         libxrandr-dev libxcursor-dev libxinerama-dev libpango1.0-dev \
-        libimlib2-dev libglib2.0-dev
+        libimlib2-dev libglib2.0-dev gettext
 
     - name: Configurar e Compilar
       run: |
-        ./bootstrap || true
+        ./bootstrap
         ./configure
         make -j$(nproc)
 
