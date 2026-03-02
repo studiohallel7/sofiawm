@@ -478,7 +478,7 @@ void frame_adjust_area(ObFrame *self, gboolean moved,
                                   self->cbwidth_b);
                 XMoveResizeWindow(obt_display, self->innerbrb,
                                   self->client->area.width +
-                                  self->size.left + self->size.right -
+                                  self->cbwidth_l + self->cbwidth_r -
                                   (ob_rr_theme->grip_width + self->bwidth),
                                   0,
                                   ob_rr_theme->grip_width + self->bwidth,
@@ -1135,9 +1135,8 @@ void frame_release_client(ObFrame *self)
     if (self->flash_timer) g_source_remove(self->flash_timer);
 }
 
-/* Trecho 3: O Motor de Layout (Substituição Total) */
 static void layout_title(ObFrame *self){
-    /* SofiaWM: Layout raiz e cirúrgico do MesaSuite */
+    /* SofiaWM: Layout nativo MesaSuite (Botões Esquerda / Título Direita) */
     self->icon_on = self->desk_on = self->shade_on = self->iconify_on =
         self->max_on = self->close_on = self->label_on = FALSE;
 
@@ -1145,20 +1144,19 @@ static void layout_title(ObFrame *self){
         self->close_on = self->iconify_on = self->max_on = self->label_on = TRUE;
     }
 
-    /* Medidas do PySide6 */
-    gint x = 12;              /* Margem esquerda */
-    gint btn_width = 32;      /* Largura do botão */
-    gint espacamento = 6;     /* Espaçamento entre eles */
-    gint y_offset = 5;        /* Centralizar na barra de 40px */
+    gint x = 12;              /* Margem esquerda inicial */
+    gint btn_width = 32;      /* Largura de cada botão */
+    gint espacamento = 6;     /* Espaçamento entre os botões */
+    gint y_offset = 5;        /* Centralizar botões na barra de 40px */
 
-    /* 1. Fechar */
+    /* 1. Fechar (Colado na esquerda) */
     self->close_x = x;
     XMapWindow(obt_display, self->close);
     XMoveWindow(obt_display, self->close, self->close_x, y_offset);
     XResizeWindow(obt_display, self->close, btn_width, 30);
     x += btn_width + espacamento;
 
-    /* 2. Minimizar (Iconify no X11) */
+    /* 2. Minimizar */
     self->iconify_x = x;
     XMapWindow(obt_display, self->iconify);
     XMoveWindow(obt_display, self->iconify, self->iconify_x, y_offset);
@@ -1170,19 +1168,32 @@ static void layout_title(ObFrame *self){
     XMapWindow(obt_display, self->max);
     XMoveWindow(obt_display, self->max, self->max_x, y_offset);
     XResizeWindow(obt_display, self->max, btn_width, 30);
+    x += btn_width + espacamento;
 
-    /* 4. Título centralizado */
-    self->label_x = x + 20; 
-    self->label_width = self->width - (self->label_x * 2); 
+    /* 4. Nome da Janela (Label) empurrado para a Direita */
+    gint margem_direita = 16;
+    gint label_largura_maxima = 300; /* Define um tamanho razoável pro texto não espremer os botões */
+    
+    /* Garante que o texto não invada os botões em janelas muito estreitas */
+    if (self->width > (x + label_largura_maxima + margem_direita)) {
+        self->label_width = label_largura_maxima;
+    } else {
+        self->label_width = self->width - x - margem_direita;
+    }
+
+    /* Ancorando na direita: Largura total da janela - largura do label - margem */
+    self->label_x = self->width - self->label_width - margem_direita;
+
     if (self->label_width > 0) {
         XMapWindow(obt_display, self->label);
         XMoveWindow(obt_display, self->label, self->label_x, 0);
-        XResizeWindow(obt_display, self->label, self->label_width, 40);
+        /* Mantemos a altura da label em 40px pra alinhar o texto no centro verticalmente */
+        XResizeWindow(obt_display, self->label, self->label_width, 40); 
     } else {
         XUnmapWindow(obt_display, self->label);
     }
 
-    /* Oculta os botões velhos do Openbox que não usamos */
+    /* Oculta os botões velhos do Openbox que a gente não usa no MesaSuite */
     XUnmapWindow(obt_display, self->icon);
     XUnmapWindow(obt_display, self->desk);
     XUnmapWindow(obt_display, self->shade);
