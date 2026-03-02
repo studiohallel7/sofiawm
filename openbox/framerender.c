@@ -275,15 +275,19 @@ static void framerender_icon(ObFrame *self, RrAppearance *a)
     XUnmapWindow(obt_display, self->icon);
 }
 
-static void framerender_max(ObFrame *self, RrAppearance *a)
-{
+static void framerender_max(ObFrame *self, RrAppearance *a){
     if (!self->max_on) return;
+    /* SofiaWM: Força o símbolo de maximizar do MesaSuite */
+    a->texture[0].type = RR_TEXTURE_TEXT;
+    a->texture[0].data.text.string = "◻"; 
     RrPaint(a, self->max, 32, 30);
 }
 
-static void framerender_iconify(ObFrame *self, RrAppearance *a)
-{
+static void framerender_iconify(ObFrame *self, RrAppearance *a){
     if (!self->iconify_on) return;
+    /* SofiaWM: Força o símbolo de minimizar */
+    a->texture[0].type = RR_TEXTURE_TEXT;
+    a->texture[0].data.text.string = "─";
     RrPaint(a, self->iconify, 32, 30);
 }
 
@@ -301,8 +305,10 @@ static void framerender_shade(ObFrame *self, RrAppearance *a)
     XUnmapWindow(obt_display, self->shade);
 }
 
-static void framerender_close(ObFrame *self, RrAppearance *a)
-{
+static void framerender_close(ObFrame *self, RrAppearance *a){
     if (!self->close_on) return;
+    /* SofiaWM: Força o símbolo de fechar */
+    a->texture[0].type = RR_TEXTURE_TEXT;
+    a->texture[0].data.text.string = "✕";
     RrPaint(a, self->close, 32, 30);
 }
