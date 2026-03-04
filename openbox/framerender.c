@@ -89,19 +89,8 @@ static inline void sofia_set_solid(RrAppearance *a, RrColor *color)
     a->surface.primary = color;
 }
 
-static inline void sofia_set_text(RrAppearance *a,
-                                   const gchar  *str,
-                                   RrColor      *color)
-{
-    a->texture[0].type                      = RR_TEXTURE_TEXT;
-    a->texture[0].data.text.string          = (gchar *)str;
-    a->texture[0].data.text.color           = color;
-    a->texture[0].data.text.justify         = RR_JUSTIFY_CENTER;
-    a->texture[0].data.text.shadow_color    = NULL;
-    a->texture[0].data.text.shadow_alpha    = 0;
-    a->texture[0].data.text.shadow_offset_x = 0;
-    a->texture[0].data.text.shadow_offset_y = 0;
-}
+/* sofia_set_text removida — botões usam RR_TEXTURE_MASK (XBM),
+ * não RR_TEXTURE_TEXT. Só o label usa texto via obrender diretamente. */
 
 /* =========================================================
  * PROTÓTIPOS
@@ -301,26 +290,45 @@ void framerender_frame(ObFrame *self)
 static void framerender_label(ObFrame *self, RrAppearance *a)
 {
     if (!self->label_on) return;
-    sofia_set_text(a, self->client->title,
-        self->focused ? sofia_colors.text_focused
-                      : sofia_colors.text_unfocused);
+    /* O label USA RR_TEXTURE_TEXT — aqui é seguro */
+    a->texture[0].data.text.string = self->client->title;
+    a->texture[0].data.text.color  = self->focused
+        ? sofia_colors.text_focused
+        : sofia_colors.text_unfocused;
     a->texture[0].data.text.font = self->focused
         ? ob_rr_theme->win_font_focused
         : ob_rr_theme->win_font_unfocused;
     RrPaint(a, self->label, self->label_width, ob_rr_theme->title_height);
 }
 
+/* =========================================================
+ * BOTÕES — apenas cor de fundo muda
+ *
+ * IMPORTANTE: NÃO sobrescrever a textura (texture[0]) dos botões.
+ * O obrender usa RR_TEXTURE_MASK (XBM bitmap) para desenhar os
+ * símbolos dos botões — não RR_TEXTURE_TEXT. Forçar TEXT numa
+ * appearance de MASK deixa o ponteiro do Pango inválido → SIGSEGV.
+ *
+ * A solução correta: só mudar surface.grad e surface.primary
+ * (a cor de fundo), deixando o obrender renderizar o ícone
+ * do botão como ele foi projetado.
+ *
+ * As cores dos ícones (mask color) são controladas pelo themerc:
+ *   window.active.button.*.image.color
+ * ========================================================= */
+
 static void framerender_close(ObFrame *self, RrAppearance *a)
 {
     if (!self->close_on) return;
+
+    /* Hover vermelho #C42B1C — fiel ao interface.py */
     RrColor *bg = self->close_press ? sofia_colors.press_btn
                 : self->close_hover ? sofia_colors.hover_close
                 : self->focused     ? sofia_colors.bg_focused
                 :                     sofia_colors.bg_unfocused;
-    RrColor *fg = (self->close_hover || self->close_press)
-                ? sofia_colors.text_action_hover : sofia_colors.text_action;
+
+    /* Só muda o fundo — não toca na textura do botão */
     sofia_set_solid(a, bg);
-    sofia_set_text(a, "\xe2\x9c\x95", fg); /* ✕ */
     RrPaint(a, self->close,
             ob_rr_theme->button_size + 2, ob_rr_theme->title_height);
 }
@@ -328,16 +336,13 @@ static void framerender_close(ObFrame *self, RrAppearance *a)
 static void framerender_max(ObFrame *self, RrAppearance *a)
 {
     if (!self->max_on) return;
-    gboolean is_max = self->client->max_vert || self->client->max_horz;
+
     RrColor *bg = self->max_press  ? sofia_colors.press_btn
                 : self->max_hover  ? sofia_colors.hover_btn
                 : self->focused    ? sofia_colors.bg_focused
                 :                    sofia_colors.bg_unfocused;
-    RrColor *fg = (self->max_hover || self->max_press)
-                ? sofia_colors.text_action_hover : sofia_colors.text_action;
-    /* ◻ = \xe2\x97\xbb  |  ❐ = \xe2\x9d\x90 */
+
     sofia_set_solid(a, bg);
-    sofia_set_text(a, is_max ? "\xe2\x9d\x90" : "\xe2\x97\xbb", fg);
     RrPaint(a, self->max,
             ob_rr_theme->button_size + 2, ob_rr_theme->title_height);
 }
@@ -345,14 +350,13 @@ static void framerender_max(ObFrame *self, RrAppearance *a)
 static void framerender_iconify(ObFrame *self, RrAppearance *a)
 {
     if (!self->iconify_on) return;
+
     RrColor *bg = self->iconify_press ? sofia_colors.press_btn
                 : self->iconify_hover ? sofia_colors.hover_btn
                 : self->focused       ? sofia_colors.bg_focused
                 :                       sofia_colors.bg_unfocused;
-    RrColor *fg = (self->iconify_hover || self->iconify_press)
-                ? sofia_colors.text_action_hover : sofia_colors.text_action;
+
     sofia_set_solid(a, bg);
-    sofia_set_text(a, "\xe2\x94\x80", fg); /* ─ */
     RrPaint(a, self->iconify,
             ob_rr_theme->button_size + 2, ob_rr_theme->title_height);
 }
