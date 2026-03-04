@@ -1,108 +1,265 @@
 /* -*- indent-tabs-mode: nil; tab-width: 4; c-basic-offset: 4; -*-
  *
  * framerender.c — SofiaWM Decorator
- * Visual fiel ao Sophia Gallery (interface.py)
+ * Cairo + Pango — zero dependência do obrender para a titlebar
  *
- * Paleta:
- *   BG focused    #181818   BG unfocused  #121212
- *   Accent        #D35400   Hover close   #C42B1C
- *   Hover btn     #2A2A2A   Press btn     #333333
- *   Separator     #222222   Border        #1E1E1E
- *   Text focused  #CCCCCC   Text unfocus  #666666
- *   Action icons  #777777   Action hover  #FFFFFF
+ *  FOCUSED:
+ *  ┌──────────────────────────────────────────────────────┐ #1E1E1E
+ *  │ [✕][─][◻] ┊ [🗁][＋][✎][↻]       Nome Da Janela  │ #181818
+ *  ├──────────────────────────────────────────────────────┤ #D35400
  *
- * NOTA: Botões de ação (🗁 ✎ ↻) estão preparados mas aguardam
- * adição dos campos action_* em frame.h + frame.c (Fase 2).
+ *  UNFOCUSED:
+ *  ┌──────────────────────────────────────────────────────┐ #1E1E1E
+ *  │ [✕][─][◻]   [🗁][＋][✎][↻]       Nome Da Janela  │ #121212
+ *  ├──────────────────────────────────────────────────────┤ #222222
  */
 
-/* framerender.h DEVE vir primeiro — define as macros SOFIA_* */
 #include "framerender.h"
 #include "frame.h"
 #include "openbox.h"
-#include "screen.h"
 #include "client.h"
-#include "obrender/theme.h"
+
+#include <cairo/cairo.h>
+#include <cairo/cairo-xlib.h>
+#include <pango/pangocairo.h>
+#include <X11/Xlib.h>
 
 /* =========================================================
- * PALETA DE CORES — alocada UMA vez, liberada no shutdown
+ * CONSTANTES DE LAYOUT
  * ========================================================= */
-typedef struct {
-    RrColor *bg_focused;
-    RrColor *bg_unfocused;
-    RrColor *accent;
-    RrColor *hover_close;
-    RrColor *hover_btn;
-    RrColor *press_btn;
-    RrColor *separator;
-    RrColor *border;
-    RrColor *text_focused;
-    RrColor *text_unfocused;
-    RrColor *text_action;
-    RrColor *text_action_hover;
-    gboolean initialized;
-} SofiaColors;
+#define SOFIA_TITLE_H    40
+#define SOFIA_BTN_W      32
+#define SOFIA_SEP_PAD    10
+#define SOFIA_FONT       "Inter Semi-Bold 10"
+#define SOFIA_BTN_FONT   "Inter 14"
 
-static SofiaColors sofia_colors = { 0 };
-
-static void sofia_colors_init(void)
+/* Helper: seta cor Cairo a partir de componentes RGB 0-255 */
+static inline void set_rgb(cairo_t *cr, int r, int g, int b)
 {
-    if (sofia_colors.initialized) return;
-    sofia_colors.bg_focused        = RrColorParse(ob_rr_inst, "#181818");
-    sofia_colors.bg_unfocused      = RrColorParse(ob_rr_inst, "#121212");
-    sofia_colors.accent            = RrColorParse(ob_rr_inst, "#D35400");
-    sofia_colors.hover_close       = RrColorParse(ob_rr_inst, "#C42B1C");
-    sofia_colors.hover_btn         = RrColorParse(ob_rr_inst, "#2A2A2A");
-    sofia_colors.press_btn         = RrColorParse(ob_rr_inst, "#333333");
-    sofia_colors.separator         = RrColorParse(ob_rr_inst, "#222222");
-    sofia_colors.border            = RrColorParse(ob_rr_inst, "#1E1E1E");
-    sofia_colors.text_focused      = RrColorParse(ob_rr_inst, "#CCCCCC");
-    sofia_colors.text_unfocused    = RrColorParse(ob_rr_inst, "#666666");
-    sofia_colors.text_action       = RrColorParse(ob_rr_inst, "#777777");
-    sofia_colors.text_action_hover = RrColorParse(ob_rr_inst, "#FFFFFF");
-    sofia_colors.initialized = TRUE;
-}
-
-void sofia_colors_free(void)
-{
-    if (!sofia_colors.initialized) return;
-    RrColorFree(sofia_colors.bg_focused);
-    RrColorFree(sofia_colors.bg_unfocused);
-    RrColorFree(sofia_colors.accent);
-    RrColorFree(sofia_colors.hover_close);
-    RrColorFree(sofia_colors.hover_btn);
-    RrColorFree(sofia_colors.press_btn);
-    RrColorFree(sofia_colors.separator);
-    RrColorFree(sofia_colors.border);
-    RrColorFree(sofia_colors.text_focused);
-    RrColorFree(sofia_colors.text_unfocused);
-    RrColorFree(sofia_colors.text_action);
-    RrColorFree(sofia_colors.text_action_hover);
-    sofia_colors.initialized = FALSE;
+    cairo_set_source_rgb(cr, r/255.0, g/255.0, b/255.0);
 }
 
 /* =========================================================
- * HELPERS INLINE
+ * DESENHO DE RETÂNGULO SÓLIDO
  * ========================================================= */
-static inline void sofia_set_solid(RrAppearance *a, RrColor *color)
+static void fill_rect(cairo_t *cr,
+                       double x, double y, double w, double h,
+                       int r, int g, int b)
 {
-    a->surface.grad    = RR_SURFACE_SOLID;
-    a->surface.primary = color;
+    set_rgb(cr, r, g, b);
+    cairo_rectangle(cr, x, y, w, h);
+    cairo_fill(cr);
 }
 
-/* sofia_set_text removida — botões usam RR_TEXTURE_MASK (XBM),
- * não RR_TEXTURE_TEXT. Só o label usa texto via obrender diretamente. */
-
 /* =========================================================
- * PROTÓTIPOS
+ * DESENHO DE SÍMBOLO CENTRALIZADO NUM BOTÃO
  * ========================================================= */
-static void framerender_label(ObFrame *self, RrAppearance *a);
-static void framerender_close(ObFrame *self, RrAppearance *a);
-static void framerender_max(ObFrame *self, RrAppearance *a);
-static void framerender_iconify(ObFrame *self, RrAppearance *a);
-static void framerender_hide_unused(ObFrame *self);
+static void draw_symbol(cairo_t    *cr,
+                         const char *sym,
+                         double      btn_x,
+                         double      btn_h,
+                         int         r, int g, int b)
+{
+    PangoLayout *lo = pango_cairo_create_layout(cr);
+    PangoFontDescription *fd = pango_font_description_from_string(SOFIA_BTN_FONT);
+    pango_layout_set_font_description(lo, fd);
+    pango_layout_set_text(lo, sym, -1);
+    pango_font_description_free(fd);
+
+    int tw, th;
+    pango_layout_get_pixel_size(lo, &tw, &th);
+
+    set_rgb(cr, r, g, b);
+    cairo_move_to(cr,
+        btn_x + (SOFIA_BTN_W - tw) / 2.0,
+        (btn_h - th) / 2.0);
+    pango_cairo_show_layout(cr, lo);
+    g_object_unref(lo);
+}
 
 /* =========================================================
- * FUNÇÃO PRINCIPAL
+ * BOTÃO COMPLETO (fundo + símbolo)
+ * ========================================================= */
+static void draw_button(cairo_t    *cr,
+                         double      x,
+                         double      h,
+                         const char *sym,
+                         gboolean    hover,
+                         gboolean    press,
+                         gboolean    is_close,
+                         gboolean    focused)
+{
+    /* Fundo */
+    if (press)
+        fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x33,0x33,0x33);
+    else if (hover && is_close)
+        fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0xC4,0x2B,0x1C);
+    else if (hover)
+        fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x2A,0x2A,0x2A);
+    else if (focused)
+        fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x18,0x18,0x18);
+    else
+        fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x12,0x12,0x12);
+
+    /* Símbolo */
+    if (hover || press)
+        draw_symbol(cr, sym, x, h, 0xFF,0xFF,0xFF);
+    else
+        draw_symbol(cr, sym, x, h, 0x77,0x77,0x77);
+}
+
+/* =========================================================
+ * TÍTULO DA JANELA — alinhado à direita
+ * ========================================================= */
+static void draw_title(cairo_t    *cr,
+                        const char *text,
+                        double      area_w,
+                        double      h,
+                        gboolean    focused)
+{
+    PangoLayout *lo = pango_cairo_create_layout(cr);
+    PangoFontDescription *fd = pango_font_description_from_string(SOFIA_FONT);
+    pango_layout_set_font_description(lo, fd);
+    pango_layout_set_text(lo, text, -1);
+    pango_font_description_free(fd);
+
+    /* Letter spacing */
+    PangoAttrList *attrs = pango_attr_list_new();
+    pango_attr_list_insert(attrs, pango_attr_letter_spacing_new(800));
+    pango_layout_set_attributes(lo, attrs);
+    pango_attr_list_unref(attrs);
+
+    int tw, th;
+    pango_layout_get_pixel_size(lo, &tw, &th);
+
+    if (focused)
+        set_rgb(cr, 0x55,0x55,0x55);
+    else
+        set_rgb(cr, 0x44,0x44,0x44);
+
+    cairo_move_to(cr, area_w - tw - 16.0, (h - th) / 2.0);
+    pango_cairo_show_layout(cr, lo);
+    g_object_unref(lo);
+}
+
+/* =========================================================
+ * RENDER DA TITLEBAR — Cairo direto na title Window
+ * ========================================================= */
+static void render_titlebar(ObFrame *self)
+{
+    Display *dpy = obt_display;
+    int w = self->width;
+    gboolean focused = self->focused;
+
+    cairo_surface_t *surf = cairo_xlib_surface_create(
+        dpy, self->title,
+        DefaultVisual(dpy, DefaultScreen(dpy)),
+        w, SOFIA_TITLE_H);
+
+    if (cairo_surface_status(surf) != CAIRO_STATUS_SUCCESS) {
+        cairo_surface_destroy(surf);
+        return;
+    }
+
+    cairo_t *cr = cairo_create(surf);
+    double h = SOFIA_TITLE_H;
+
+    /* 1. Fundo */
+    if (focused)
+        fill_rect(cr, 0, 0, w, h, 0x18,0x18,0x18);
+    else
+        fill_rect(cr, 0, 0, w, h, 0x12,0x12,0x12);
+
+    /* 2. Botões de janela */
+    double x = 0;
+
+    draw_button(cr, x, h, "✕",
+                self->close_hover, self->close_press, TRUE, focused);
+    x += SOFIA_BTN_W;
+
+    draw_button(cr, x, h, "─",
+                self->iconify_hover, self->iconify_press, FALSE, focused);
+    x += SOFIA_BTN_W;
+
+    gboolean is_max = self->client->max_vert || self->client->max_horz;
+    draw_button(cr, x, h, is_max ? "❐" : "◻",
+                self->max_hover, self->max_press, FALSE, focused);
+    x += SOFIA_BTN_W;
+
+    /* 3. Separador vertical (só focused) */
+    if (focused) {
+        x += SOFIA_SEP_PAD;
+        set_rgb(cr, 0x33,0x33,0x33);
+        cairo_set_line_width(cr, 1.0);
+        cairo_move_to(cr, x + 0.5, 8);
+        cairo_line_to(cr, x + 0.5, h - 8);
+        cairo_stroke(cr);
+        x += 1 + SOFIA_SEP_PAD;
+    } else {
+        x += SOFIA_SEP_PAD * 2 + 1;
+    }
+
+    /* 4. Botões de ação */
+    const char *actions[] = { "🗁", "＋", "✎", "↻" };
+    for (int k = 0; k < 4; k++) {
+        draw_button(cr, x, h, actions[k],
+                    FALSE, FALSE, FALSE, focused);
+        x += SOFIA_BTN_W;
+    }
+
+    /* 5. Título à direita */
+    if (self->client && self->client->title)
+        draw_title(cr, self->client->title, w, h, focused);
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(surf);
+}
+
+/* =========================================================
+ * RENDER DAS BORDAS — X11 direto
+ * ========================================================= */
+static void render_borders(ObFrame *self)
+{
+    gulong px_border  = 0x1E1E1E;
+    gulong px_bg      = 0x121212;
+    gulong px_bottom  = self->focused ? 0xD35400 : 0x222222;
+
+    XSetWindowBackground(obt_display, self->titlebottom, px_bottom);
+    XClearWindow(obt_display,         self->titlebottom);
+    XSetWindowBackground(obt_display, self->titletop,   px_border);
+    XClearWindow(obt_display,         self->titletop);
+    XSetWindowBackground(obt_display, self->left,       px_border);
+    XClearWindow(obt_display,         self->left);
+    XSetWindowBackground(obt_display, self->right,      px_border);
+    XClearWindow(obt_display,         self->right);
+    XSetWindowBackground(obt_display, self->backback,    px_bg);
+    XClearWindow(obt_display,         self->backback);
+    XSetWindowBackground(obt_display, self->innerleft,   px_bg);
+    XClearWindow(obt_display,         self->innerleft);
+    XSetWindowBackground(obt_display, self->innerright,  px_bg);
+    XClearWindow(obt_display,         self->innerright);
+    XSetWindowBackground(obt_display, self->innerbottom, px_bg);
+    XClearWindow(obt_display,         self->innerbottom);
+}
+
+/* =========================================================
+ * OCULTAR SUBWINDOWS LEGADAS DO OBRENDER
+ * Cairo pinta direto na self->title — as subwindows ficam por cima
+ * se não forem ocultadas
+ * ========================================================= */
+static void hide_legacy_subwindows(ObFrame *self)
+{
+    if (self->close_on)   XUnmapWindow(obt_display, self->close);
+    if (self->max_on)     XUnmapWindow(obt_display, self->max);
+    if (self->iconify_on) XUnmapWindow(obt_display, self->iconify);
+    if (self->label_on)   XUnmapWindow(obt_display, self->label);
+    if (self->desk_on)    XUnmapWindow(obt_display, self->desk);
+    if (self->shade_on)   XUnmapWindow(obt_display, self->shade);
+    if (self->icon_on)    XUnmapWindow(obt_display, self->icon);
+}
+
+/* =========================================================
+ * PONTO DE ENTRADA
  * ========================================================= */
 void framerender_frame(ObFrame *self)
 {
@@ -111,259 +268,24 @@ void framerender_frame(ObFrame *self)
     if (!self->visible)                return;
     self->need_render = FALSE;
 
-    sofia_colors_init();
+    /* Oculta subwindows legadas — Cairo pinta na title window diretamente */
+    hide_legacy_subwindows(self);
 
-    /* --------------------------------------------------
-     * 1. BORDAS E ÁREAS INTERNAS
-     * -------------------------------------------------- */
-    {
-        gulong px_bg     = RrColorPixel(sofia_colors.bg_unfocused);
-        gulong px_border = RrColorPixel(sofia_colors.border);
-        gulong px_bottom = self->focused
-            ? RrColorPixel(sofia_colors.accent)      /* #D35400 focused */
-            : RrColorPixel(sofia_colors.separator);  /* #222222 unfocused */
-
-        XSetWindowBackground(obt_display, self->backback,    px_bg);     XClearWindow(obt_display, self->backback);
-        XSetWindowBackground(obt_display, self->innerleft,   px_bg);     XClearWindow(obt_display, self->innerleft);
-        XSetWindowBackground(obt_display, self->innerright,  px_bg);     XClearWindow(obt_display, self->innerright);
-        XSetWindowBackground(obt_display, self->innerbottom, px_bg);     XClearWindow(obt_display, self->innerbottom);
-        XSetWindowBackground(obt_display, self->left,        px_border); XClearWindow(obt_display, self->left);
-        XSetWindowBackground(obt_display, self->right,       px_border); XClearWindow(obt_display, self->right);
-        XSetWindowBackground(obt_display, self->titletop,    px_border); XClearWindow(obt_display, self->titletop);
-        XSetWindowBackground(obt_display, self->titlebottom, px_bottom); XClearWindow(obt_display, self->titlebottom);
-    }
-
-    /* --------------------------------------------------
-     * 2. TITLEBAR
-     * -------------------------------------------------- */
+    /* Titlebar Cairo */
     if (self->decorations & OB_FRAME_DECOR_TITLEBAR)
-    {
-        RrAppearance *t, *l, *m, *ic, *d, *s, *c;
+        render_titlebar(self);
 
-        if (self->focused) {
-            t  = ob_rr_theme->a_focused_title;
-            l  = ob_rr_theme->a_focused_label;
-            c  = (!(self->decorations & OB_FRAME_DECOR_CLOSE)
-                  ? ob_rr_theme->btn_close->a_focused_disabled
-                  : self->close_press ? ob_rr_theme->btn_close->a_focused_pressed
-                  : self->close_hover ? ob_rr_theme->btn_close->a_focused_hover
-                  :                     ob_rr_theme->btn_close->a_focused_unpressed);
-            m  = (!(self->decorations & OB_FRAME_DECOR_MAXIMIZE)
-                  ? ob_rr_theme->btn_max->a_focused_disabled
-                  : (self->client->max_vert || self->client->max_horz)
-                    ? (self->max_press  ? ob_rr_theme->btn_max->a_focused_pressed_toggled
-                       : self->max_hover? ob_rr_theme->btn_max->a_focused_hover_toggled
-                       :                  ob_rr_theme->btn_max->a_focused_unpressed_toggled)
-                    : (self->max_press  ? ob_rr_theme->btn_max->a_focused_pressed
-                       : self->max_hover? ob_rr_theme->btn_max->a_focused_hover
-                       :                  ob_rr_theme->btn_max->a_focused_unpressed));
-            ic = (!(self->decorations & OB_FRAME_DECOR_ICONIFY)
-                  ? ob_rr_theme->btn_iconify->a_focused_disabled
-                  : self->iconify_press ? ob_rr_theme->btn_iconify->a_focused_pressed
-                  : self->iconify_hover ? ob_rr_theme->btn_iconify->a_focused_hover
-                  :                       ob_rr_theme->btn_iconify->a_focused_unpressed);
-            d  = (!(self->decorations & OB_FRAME_DECOR_ALLDESKTOPS)
-                  ? ob_rr_theme->btn_desk->a_focused_disabled
-                  : (self->client->desktop == DESKTOP_ALL)
-                    ? (self->desk_press  ? ob_rr_theme->btn_desk->a_focused_pressed_toggled
-                       : self->desk_hover? ob_rr_theme->btn_desk->a_focused_hover_toggled
-                       :                   ob_rr_theme->btn_desk->a_focused_unpressed_toggled)
-                    : (self->desk_press  ? ob_rr_theme->btn_desk->a_focused_pressed
-                       : self->desk_hover? ob_rr_theme->btn_desk->a_focused_hover
-                       :                   ob_rr_theme->btn_desk->a_focused_unpressed));
-            s  = (!(self->decorations & OB_FRAME_DECOR_SHADE)
-                  ? ob_rr_theme->btn_shade->a_focused_disabled
-                  : self->client->shaded
-                    ? (self->shade_press  ? ob_rr_theme->btn_shade->a_focused_pressed_toggled
-                       : self->shade_hover? ob_rr_theme->btn_shade->a_focused_hover_toggled
-                       :                    ob_rr_theme->btn_shade->a_focused_unpressed_toggled)
-                    : (self->shade_press  ? ob_rr_theme->btn_shade->a_focused_pressed
-                       : self->shade_hover? ob_rr_theme->btn_shade->a_focused_hover
-                       :                    ob_rr_theme->btn_shade->a_focused_unpressed));
-        } else {
-            t  = ob_rr_theme->a_unfocused_title;
-            l  = ob_rr_theme->a_unfocused_label;
-            c  = (!(self->decorations & OB_FRAME_DECOR_CLOSE)
-                  ? ob_rr_theme->btn_close->a_unfocused_disabled
-                  : self->close_press ? ob_rr_theme->btn_close->a_unfocused_pressed
-                  : self->close_hover ? ob_rr_theme->btn_close->a_unfocused_hover
-                  :                     ob_rr_theme->btn_close->a_unfocused_unpressed);
-            m  = (!(self->decorations & OB_FRAME_DECOR_MAXIMIZE)
-                  ? ob_rr_theme->btn_max->a_unfocused_disabled
-                  : (self->client->max_vert || self->client->max_horz)
-                    ? (self->max_press  ? ob_rr_theme->btn_max->a_unfocused_pressed_toggled
-                       : self->max_hover? ob_rr_theme->btn_max->a_unfocused_hover_toggled
-                       :                  ob_rr_theme->btn_max->a_unfocused_unpressed_toggled)
-                    : (self->max_press  ? ob_rr_theme->btn_max->a_unfocused_pressed
-                       : self->max_hover? ob_rr_theme->btn_max->a_unfocused_hover
-                       :                  ob_rr_theme->btn_max->a_unfocused_unpressed));
-            ic = (!(self->decorations & OB_FRAME_DECOR_ICONIFY)
-                  ? ob_rr_theme->btn_iconify->a_unfocused_disabled
-                  : self->iconify_press ? ob_rr_theme->btn_iconify->a_unfocused_pressed
-                  : self->iconify_hover ? ob_rr_theme->btn_iconify->a_unfocused_hover
-                  :                       ob_rr_theme->btn_iconify->a_unfocused_unpressed);
-            d  = (!(self->decorations & OB_FRAME_DECOR_ALLDESKTOPS)
-                  ? ob_rr_theme->btn_desk->a_unfocused_disabled
-                  : (self->client->desktop == DESKTOP_ALL)
-                    ? (self->desk_press  ? ob_rr_theme->btn_desk->a_unfocused_pressed_toggled
-                       : self->desk_hover? ob_rr_theme->btn_desk->a_unfocused_hover_toggled
-                       :                   ob_rr_theme->btn_desk->a_unfocused_unpressed_toggled)
-                    : (self->desk_press  ? ob_rr_theme->btn_desk->a_unfocused_pressed
-                       : self->desk_hover? ob_rr_theme->btn_desk->a_unfocused_hover
-                       :                   ob_rr_theme->btn_desk->a_unfocused_unpressed));
-            s  = (!(self->decorations & OB_FRAME_DECOR_SHADE)
-                  ? ob_rr_theme->btn_shade->a_unfocused_disabled
-                  : self->client->shaded
-                    ? (self->shade_press  ? ob_rr_theme->btn_shade->a_unfocused_pressed_toggled
-                       : self->shade_hover? ob_rr_theme->btn_shade->a_unfocused_hover_toggled
-                       :                    ob_rr_theme->btn_shade->a_unfocused_unpressed_toggled)
-                    : (self->shade_press  ? ob_rr_theme->btn_shade->a_unfocused_pressed
-                       : self->shade_hover? ob_rr_theme->btn_shade->a_unfocused_hover
-                       :                    ob_rr_theme->btn_shade->a_unfocused_unpressed));
-        }
+    /* Bordas X11 */
+    render_borders(self);
 
-        /* Silencia warning de variável não usada (desk/shade são ocultados) */
-        (void)d; (void)s;
-
-        /* 2a. Fundo flat da titlebar */
-        sofia_set_solid(t, self->focused ? sofia_colors.bg_focused
-                                         : sofia_colors.bg_unfocused);
-        RrPaint(t, self->title, self->width, ob_rr_theme->title_height);
-
-        /* 2b. Botões de janela — cada um com seu símbolo e cor */
-        framerender_close(self, c);
-        framerender_max(self, m);
-        framerender_iconify(self, ic);
-
-        /* 2c. Label */
-        l->surface.parent  = t;
-        l->surface.parentx = self->label_x;
-        l->surface.parenty = 0;
-        framerender_label(self, l);
-
-        /* 2d. Ocultar desk / shade / icon */
-        framerender_hide_unused(self);
-    }
-
-    /* --------------------------------------------------
-     * 3. HANDLE + GRIPS
-     * -------------------------------------------------- */
-    if (self->decorations & OB_FRAME_DECOR_HANDLE &&
-        ob_rr_theme->handle_height > 0)
-    {
-        RrAppearance *h = self->focused
-            ? ob_rr_theme->a_focused_handle
-            : ob_rr_theme->a_unfocused_handle;
-
-        sofia_set_solid(h, sofia_colors.bg_unfocused);
-        RrPaint(h, self->handle, self->width, ob_rr_theme->handle_height);
-
-        if (self->decorations & OB_FRAME_DECOR_GRIPS) {
-            RrAppearance *g = self->focused
-                ? ob_rr_theme->a_focused_grip
-                : ob_rr_theme->a_unfocused_grip;
-
-            if (g->surface.grad == RR_SURFACE_PARENTREL)
-                g->surface.parent = h;
-            else
-                sofia_set_solid(g, sofia_colors.border);
-
-            g->surface.parentx = 0;
-            g->surface.parenty = 0;
-            RrPaint(g, self->lgrip,
-                    ob_rr_theme->grip_width, ob_rr_theme->handle_height);
-
-            g->surface.parentx = self->width - ob_rr_theme->grip_width;
-            g->surface.parenty = 0;
-            RrPaint(g, self->rgrip,
-                    ob_rr_theme->grip_width, ob_rr_theme->handle_height);
-        }
+    /* Handle invisível mas funcional para resize */
+    if (self->decorations & OB_FRAME_DECOR_HANDLE) {
+        XSetWindowBackground(obt_display, self->handle, 0x121212);
+        XClearWindow(obt_display, self->handle);
     }
 
     XFlush(obt_display);
 }
 
-/* =========================================================
- * ELEMENTOS — renderização individual
- * ========================================================= */
-
-static void framerender_label(ObFrame *self, RrAppearance *a)
-{
-    if (!self->label_on) return;
-    /* O label USA RR_TEXTURE_TEXT — aqui é seguro */
-    a->texture[0].data.text.string = self->client->title;
-    a->texture[0].data.text.color  = self->focused
-        ? sofia_colors.text_focused
-        : sofia_colors.text_unfocused;
-    a->texture[0].data.text.font = self->focused
-        ? ob_rr_theme->win_font_focused
-        : ob_rr_theme->win_font_unfocused;
-    RrPaint(a, self->label, self->label_width, ob_rr_theme->title_height);
-}
-
-/* =========================================================
- * BOTÕES — apenas cor de fundo muda
- *
- * IMPORTANTE: NÃO sobrescrever a textura (texture[0]) dos botões.
- * O obrender usa RR_TEXTURE_MASK (XBM bitmap) para desenhar os
- * símbolos dos botões — não RR_TEXTURE_TEXT. Forçar TEXT numa
- * appearance de MASK deixa o ponteiro do Pango inválido → SIGSEGV.
- *
- * A solução correta: só mudar surface.grad e surface.primary
- * (a cor de fundo), deixando o obrender renderizar o ícone
- * do botão como ele foi projetado.
- *
- * As cores dos ícones (mask color) são controladas pelo themerc:
- *   window.active.button.*.image.color
- * ========================================================= */
-
-static void framerender_close(ObFrame *self, RrAppearance *a)
-{
-    if (!self->close_on) return;
-
-    /* Hover vermelho #C42B1C — fiel ao interface.py */
-    RrColor *bg = self->close_press ? sofia_colors.press_btn
-                : self->close_hover ? sofia_colors.hover_close
-                : self->focused     ? sofia_colors.bg_focused
-                :                     sofia_colors.bg_unfocused;
-
-    /* Só muda o fundo — não toca na textura do botão */
-    sofia_set_solid(a, bg);
-    RrPaint(a, self->close,
-            ob_rr_theme->button_size + 2, ob_rr_theme->title_height);
-}
-
-static void framerender_max(ObFrame *self, RrAppearance *a)
-{
-    if (!self->max_on) return;
-
-    RrColor *bg = self->max_press  ? sofia_colors.press_btn
-                : self->max_hover  ? sofia_colors.hover_btn
-                : self->focused    ? sofia_colors.bg_focused
-                :                    sofia_colors.bg_unfocused;
-
-    sofia_set_solid(a, bg);
-    RrPaint(a, self->max,
-            ob_rr_theme->button_size + 2, ob_rr_theme->title_height);
-}
-
-static void framerender_iconify(ObFrame *self, RrAppearance *a)
-{
-    if (!self->iconify_on) return;
-
-    RrColor *bg = self->iconify_press ? sofia_colors.press_btn
-                : self->iconify_hover ? sofia_colors.hover_btn
-                : self->focused       ? sofia_colors.bg_focused
-                :                       sofia_colors.bg_unfocused;
-
-    sofia_set_solid(a, bg);
-    RrPaint(a, self->iconify,
-            ob_rr_theme->button_size + 2, ob_rr_theme->title_height);
-}
-
-static void framerender_hide_unused(ObFrame *self)
-{
-    if (self->desk_on)  XUnmapWindow(obt_display, self->desk);
-    if (self->shade_on) XUnmapWindow(obt_display, self->shade);
-    if (self->icon_on)  XUnmapWindow(obt_display, self->icon);
-}
+/* Nada a liberar — Cairo não usa pool de cores */
+void sofia_colors_free(void) { }
