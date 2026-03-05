@@ -132,13 +132,27 @@ static int parse_actions(const char         *json,
         while (*arr && *arr != '{') arr++;
         if (*arr != '{') break;
 
-        /* Extrai campos do objeto */
-        const char *obj_end = strchr(arr, '}');
+        /* Encontra o '}' correto — ignorando os que estão dentro de strings */
+        const char *scan = arr + 1;
+        int depth = 1;
+        int in_str = 0;
+        while (*scan && depth > 0) {
+            if (in_str) {
+                if (*scan == '\\') { scan++; } /* pula escaped char */
+                else if (*scan == '"') { in_str = 0; }
+            } else {
+                if (*scan == '"')      { in_str = 1; }
+                else if (*scan == '{') { depth++; }
+                else if (*scan == '}') { depth--; }
+            }
+            if (depth > 0) scan++;
+        }
+        const char *obj_end = (*scan == '}') ? scan : NULL;
         if (!obj_end) break;
 
         /* Copia o objeto para buffer temporário */
         int obj_len = (int)(obj_end - arr + 1);
-        char obj[512] = { 0 };
+        char obj[2048] = { 0 };
         if (obj_len >= (int)sizeof(obj)) obj_len = sizeof(obj) - 1;
         memcpy(obj, arr, obj_len);
 
