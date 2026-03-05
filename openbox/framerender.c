@@ -18,6 +18,7 @@
 #include "frame.h"
 #include "openbox.h"
 #include "client.h"
+#include "sofia_actions.h"
 
 #include <cairo/cairo.h>
 #include <cairo/cairo-xlib.h>
