@@ -22,6 +22,10 @@
 #include "window.h"
 #include "openbox.h"
 #include "sofia_actions.h"
+#include "framerender.h"
+
+/* SofiaWM: estado global das ações da janela focada */
+SofiaWindowActions sofia_current_actions;
 #include "dock.h"
 #include "actions.h"
 #include "client.h"
