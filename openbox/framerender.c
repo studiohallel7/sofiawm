@@ -170,21 +170,25 @@ static void render_titlebar(ObFrame *self)
     else
         fill_rect(cr, 0, 0, w, h, 0x12,0x12,0x12);
 
-    /* 2. Botões de janela */
-    double x = 0;
+    /* 2. Botões de janela — posições lidas do frame (sincronizadas com frame.c)
+     * frame.c usa: x=12, btn_width=32, espacamento=6
+     * close=12, iconify=50, max=88 */
+    double x = self->close_x;
 
     draw_button(cr, x, h, "✕",
                 self->close_hover, self->close_press, TRUE, focused);
-    x += SOFIA_BTN_W;
 
+    x = self->iconify_x;
     draw_button(cr, x, h, "─",
                 self->iconify_hover, self->iconify_press, FALSE, focused);
-    x += SOFIA_BTN_W;
 
+    x = self->max_x;
     gboolean is_max = self->client->max_vert || self->client->max_horz;
     draw_button(cr, x, h, is_max ? "❐" : "◻",
                 self->max_hover, self->max_press, FALSE, focused);
-    x += SOFIA_BTN_W;
+
+    /* Posição após o último botão */
+    x = self->max_x + 32 + 6;
 
     /* 3. Separador vertical (só focused) */
     if (focused) {
@@ -249,10 +253,24 @@ static void render_borders(ObFrame *self)
  * ========================================================= */
 static void hide_legacy_subwindows(ObFrame *self)
 {
-    if (self->close_on)   XUnmapWindow(obt_display, self->close);
-    if (self->max_on)     XUnmapWindow(obt_display, self->max);
-    if (self->iconify_on) XUnmapWindow(obt_display, self->iconify);
-    if (self->label_on)   XUnmapWindow(obt_display, self->label);
+    /* IMPORTANTE: close, max, iconify NÃO são desmapados!
+     * O event.c detecta hover/press nessas subwindows X11.
+     * Tornamos transparentes para o Cairo pintar por baixo,
+     * mas elas precisam existir para capturar eventos de mouse. */
+
+    /* Torna os botões transparentes — sem background */
+    if (self->close_on)
+        XSetWindowBackgroundPixmap(obt_display, self->close, ParentRelative);
+    if (self->max_on)
+        XSetWindowBackgroundPixmap(obt_display, self->max, ParentRelative);
+    if (self->iconify_on)
+        XSetWindowBackgroundPixmap(obt_display, self->iconify, ParentRelative);
+
+    /* Label também transparente — Cairo desenha o título */
+    if (self->label_on)
+        XSetWindowBackgroundPixmap(obt_display, self->label, ParentRelative);
+
+    /* Estes sim podem ser desmapados — não usamos */
     if (self->desk_on)    XUnmapWindow(obt_display, self->desk);
     if (self->shade_on)   XUnmapWindow(obt_display, self->shade);
     if (self->icon_on)    XUnmapWindow(obt_display, self->icon);
