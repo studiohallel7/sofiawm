@@ -172,6 +172,7 @@ openbox_openbox_CPPFLAGS = \
 	$(XCURSOR_CFLAGS) \
 	$(SM_CFLAGS) \
 	$(PANGO_CFLAGS) \
+	$(CAIRO_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(LIBSN_CFLAGS) \
 	$(XML_CFLAGS) \
@@ -191,7 +192,8 @@ openbox_openbox_LDADD = \
 	$(EFENCE_LIBS) \
 	$(LIBINTL) \
 	obrender/libobrender.la \
-	obt/libobt.la
+	obt/libobt.la \
+	$(CAIRO_LIBS)
 openbox_openbox_LDFLAGS = -export-dynamic
 openbox_openbox_SOURCES = \
 	gettext.h \
@@ -265,6 +267,8 @@ openbox_openbox_SOURCES = \
 	openbox/frame.h \
 	openbox/framerender.c \
 	openbox/framerender.h \
+	openbox/sofia_actions.c \
+	openbox/sofia_actions.h \
 	openbox/geom.h \
 	openbox/grab.c \
 	openbox/grab.h \
