@@ -34,7 +34,8 @@ SofiaWindowActions sofia_current_actions = { 0 };
  * HELPERS JSON MÍNIMO — sem dependência de jansson/json-c
  * ========================================================= */
 
-/* Extrai string de um JSON simples: {"key":"value"} */
+/* Extrai string de um JSON simples: {"key":"value"}
+ * Suporta \uXXXX e \" escapados dentro do valor */
 static int json_get_string(const char *json,
                             const char *key,
                             char       *out,
@@ -45,13 +46,51 @@ static int json_get_string(const char *json,
     const char *p = strstr(json, search);
     if (!p) return 0;
     p += strlen(search);
-    const char *end = strchr(p, '"');
-    if (!end) return 0;
-    int len = (int)(end - p);
-    if (len >= out_size) len = out_size - 1;
-    memcpy(out, p, len);
+
+    /* Copia até aspas não-escapadas, decodificando \uXXXX simples */
+    int len = 0;
+    while (*p && len < out_size - 1) {
+        if (*p == '\\') {
+            p++;
+            if (*p == '"') {
+                /* aspas escapadas — inclui no valor */
+                out[len++] = '"';
+                p++;
+            } else if (*p == 'n') {
+                out[len++] = '\n'; p++;
+            } else if (*p == 't') {
+                out[len++] = '\t'; p++;
+            } else if (*p == 'u' && p[1] && p[2] && p[3] && p[4]) {
+                /* \uXXXX — decodifica para UTF-8 */
+                unsigned int cp = 0;
+                sscanf(p + 1, "%4x", &cp);
+                p += 5;
+                if (cp < 0x80) {
+                    out[len++] = (char)cp;
+                } else if (cp < 0x800) {
+                    if (len + 2 < out_size) {
+                        out[len++] = (char)(0xC0 | (cp >> 6));
+                        out[len++] = (char)(0x80 | (cp & 0x3F));
+                    }
+                } else {
+                    if (len + 3 < out_size) {
+                        out[len++] = (char)(0xE0 | (cp >> 12));
+                        out[len++] = (char)(0x80 | ((cp >> 6) & 0x3F));
+                        out[len++] = (char)(0x80 | (cp & 0x3F));
+                    }
+                }
+            } else {
+                out[len++] = '\\';
+                if (*p) out[len++] = *p++;
+            }
+        } else if (*p == '"') {
+            break; /* fim da string JSON */
+        } else {
+            out[len++] = *p++;
+        }
+    }
     out[len] = '\0';
-    return 1;
+    return len > 0 ? 1 : 0;
 }
 
 /* Extrai int de um JSON: {"key":123} */
