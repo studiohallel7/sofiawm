@@ -199,15 +199,29 @@ static void render_titlebar(ObFrame *self)
         x += SOFIA_SEP_PAD * 2 + 1;
     }
 
-    /* Botões de ação */
-    const char *actions[] = { "🗁", "＋", "✎", "↻" };
-    for (int k = 0; k < 4; k++) {
-        fill_rect(cr, x, 0, SOFIA_BTN_W, h,
-                  focused ? 0x18 : 0x12,
-                  focused ? 0x18 : 0x12,
-                  focused ? 0x18 : 0x12);
-        draw_symbol(cr, actions[k], x, h, 0x77,0x77,0x77);
-        x += SOFIA_BTN_W;
+    /* Botões de ação — dinâmicos via AppletManager */
+    extern SofiaWindowActions sofia_current_actions;
+    if (sofia_current_actions.count > 0) {
+        for (int k = 0; k < sofia_current_actions.count; k++) {
+            fill_rect(cr, x, 0, SOFIA_BTN_W, h,
+                      focused ? 0x18 : 0x12,
+                      focused ? 0x18 : 0x12,
+                      focused ? 0x18 : 0x12);
+            draw_symbol(cr, sofia_current_actions.actions[k].icon,
+                        x, h, 0x77,0x77,0x77);
+            x += SOFIA_BTN_W;
+        }
+    } else {
+        /* Sem ações contextuais — ícones neutros padrão */
+        const char *defaults[] = { "🗁", "＋", "✎", "↻" };
+        for (int k = 0; k < 4; k++) {
+            fill_rect(cr, x, 0, SOFIA_BTN_W, h,
+                      focused ? 0x18 : 0x12,
+                      focused ? 0x18 : 0x12,
+                      focused ? 0x18 : 0x12);
+            draw_symbol(cr, defaults[k], x, h, 0x44,0x44,0x44);
+            x += SOFIA_BTN_W;
+        }
     }
 
     /* Título à direita */
