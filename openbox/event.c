@@ -589,8 +589,8 @@ static void event_process(const XEvent *ec, gpointer data)
 
             /* SofiaWM: consulta AppletManager pelas ações contextuais */
             {
-                const char *wm_class = client->icccm.res_class
-                    ? client->icccm.res_class : "";
+                const char *wm_class = client->res_class
+                    ? client->res_class : "";
                 const char *title = client->title ? client->title : "";
                 sofia_actions_query(wm_class, title, 0, &sofia_current_actions);
                 client->frame->need_render = TRUE;
