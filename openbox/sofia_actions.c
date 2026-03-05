@@ -206,7 +206,7 @@ gboolean sofia_actions_query(const char         *wm_class,
     g_debug("[SOFIA_ACTIONS] Resposta: %s", buf);
 
     /* Verifica status */
-    if (!strstr(buf, "\"status\":\"ok\"")) {
+    if (!strstr(buf, "\"status\"") || (!strstr(buf, "\"ok\"") && !strstr(buf, "ok_"))) {
         g_debug("[SOFIA_ACTIONS] AppletManager retornou erro");
         return FALSE;
     }
