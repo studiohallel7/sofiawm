@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "window.h"
 #include "openbox.h"
+#include "sofia_actions.h"
 #include "dock.h"
 #include "actions.h"
 #include "client.h"
@@ -581,6 +582,16 @@ static void event_process(const XEvent *ec, gpointer data)
             focus_set_client(client);
             client_calc_layer(client);
             client_bring_helper_windows(client);
+
+            /* SofiaWM: consulta AppletManager pelas ações contextuais */
+            {
+                const char *wm_class = client->icccm.res_class
+                    ? client->icccm.res_class : "";
+                const char *title = client->title ? client->title : "";
+                sofia_actions_query(wm_class, title, 0, &sofia_current_actions);
+                client->frame->need_render = TRUE;
+                framerender_frame(client->frame);
+            }
         }
 
         waiting_for_focusin = FALSE;
@@ -619,8 +630,13 @@ static void event_process(const XEvent *ec, gpointer data)
             focus_set_client(NULL);
         }
 
-        if (client && client != focus_client)
+        if (client && client != focus_client) {
             frame_adjust_focus(client->frame, FALSE);
+            /* SofiaWM: limpa ações contextuais ao perder foco */
+            sofia_actions_clear(&sofia_current_actions);
+            client->frame->need_render = TRUE;
+            framerender_frame(client->frame);
+        }
     }
     else if (client)
         event_handle_client(client, e);
