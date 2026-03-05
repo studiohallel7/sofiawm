@@ -122,25 +122,30 @@ static int parse_actions(const char         *json,
 
     /* Encontra o array actions */
     const char *arr = strstr(json, "\"actions\":[");
-    if (!arr) return 0;
+    if (!arr) {
+        g_debug("[SOFIA_PARSE] array actions nao encontrado");
+        return 0;
+    }
     arr = strchr(arr, '[');
     if (!arr) return 0;
     arr++; /* pula o '[' */
 
+    g_debug("[SOFIA_PARSE] iniciando parse, primeiro char: '%c' (0x%02x)",
+            *arr ? *arr : '?', (unsigned char)(*arr ? *arr : 0));
+
     while (*arr && *arr != ']' && out->count < SOFIA_MAX_ACTIONS) {
-        /* Pula até próximo objeto */
-        while (*arr && *arr != '{') arr++;
+        /* Pula espaços/vírgulas até { */
+        while (*arr && *arr != '{' && *arr != ']') arr++;
         if (*arr != '{') break;
 
-        /* Encontra o '}' correto — ignorando os que estão dentro de strings.
-         * JSON válido: \" = aspas escapadas (não encerra string) */
+        /* Encontra o '}' correto respeitando strings */
         const char *scan = arr + 1;
         int depth = 1;
         int in_str = 0;
         while (*scan && depth > 0) {
             if (in_str) {
                 if (*scan == '\\') {
-                    scan++; /* pula o char escapado — não altera in_str */
+                    scan++;
                     if (*scan) scan++;
                     continue;
                 } else if (*scan == '"') {
@@ -153,22 +158,32 @@ static int parse_actions(const char         *json,
             }
             if (depth > 0) scan++;
         }
+
+        g_debug("[SOFIA_PARSE] obj #%d: depth_final=%d char='%c'",
+                out->count, depth, *scan ? *scan : '?');
+
         const char *obj_end = (*scan == '}') ? scan : NULL;
-        if (!obj_end) break;
+        if (!obj_end) {
+            g_debug("[SOFIA_PARSE] obj_end nao encontrado, abortando");
+            break;
+        }
 
         /* Copia o objeto para buffer temporário */
         int obj_len = (int)(obj_end - arr + 1);
-        char obj[2048] = { 0 };
+        char obj[4096] = { 0 };
         if (obj_len >= (int)sizeof(obj)) obj_len = sizeof(obj) - 1;
         memcpy(obj, arr, obj_len);
 
         SofiaAction *a = &out->actions[out->count];
         memset(a, 0, sizeof(*a));
 
-        json_get_string(obj, "icon",    a->icon,    sizeof(a->icon));
-        json_get_string(obj, "id",      a->id,      sizeof(a->id));
-        json_get_string(obj, "label",   a->label,   sizeof(a->label));
-        json_get_string(obj, "command", a->command, sizeof(a->command));
+        int got_icon = json_get_string(obj, "icon",    a->icon,    sizeof(a->icon));
+        int got_id   = json_get_string(obj, "id",      a->id,      sizeof(a->id));
+        int got_lbl  = json_get_string(obj, "label",   a->label,   sizeof(a->label));
+        int got_cmd  = json_get_string(obj, "command", a->command, sizeof(a->command));
+
+        g_debug("[SOFIA_PARSE] campos: icon=%d id=%d label=%d cmd=%d | id='%s'",
+                got_icon, got_id, got_lbl, got_cmd, a->id);
 
         if (a->id[0] != '\0')
             out->count++;
@@ -176,6 +191,7 @@ static int parse_actions(const char         *json,
         arr = obj_end + 1;
     }
 
+    g_debug("[SOFIA_PARSE] total: %d acoes", out->count);
     return out->count;
 }
 
