@@ -132,14 +132,20 @@ static int parse_actions(const char         *json,
         while (*arr && *arr != '{') arr++;
         if (*arr != '{') break;
 
-        /* Encontra o '}' correto — ignorando os que estão dentro de strings */
+        /* Encontra o '}' correto — ignorando os que estão dentro de strings.
+         * JSON válido: \" = aspas escapadas (não encerra string) */
         const char *scan = arr + 1;
         int depth = 1;
         int in_str = 0;
         while (*scan && depth > 0) {
             if (in_str) {
-                if (*scan == '\\') { scan++; } /* pula escaped char */
-                else if (*scan == '"') { in_str = 0; }
+                if (*scan == '\\') {
+                    scan++; /* pula o char escapado — não altera in_str */
+                    if (*scan) scan++;
+                    continue;
+                } else if (*scan == '"') {
+                    in_str = 0;
+                }
             } else {
                 if (*scan == '"')      { in_str = 1; }
                 else if (*scan == '{') { depth++; }
