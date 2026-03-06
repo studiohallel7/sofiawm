@@ -91,10 +91,13 @@ static void draw_action_icon(cairo_t    *cr,
 {
     /* Tenta com sequência de fontes que cobrem símbolos */
     const char *fonts[] = {
-        "Noto Sans Symbols2 12",
-        "Symbola 12",
         "DejaVu Sans 12",
+        "Noto Sans 12",
+        "Noto Sans Symbols2 12",
+        "Liberation Sans 12",
+        "FreeSans 12",
         "Inter 14",
+        "sans 12",
         NULL
     };
     PangoLayout *lo = pango_cairo_create_layout(cr);
@@ -150,11 +153,13 @@ static void draw_button(cairo_t    *cr,
     else
         fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x12,0x12,0x12);
 
-    /* Símbolo */
+    /* Símbolo — usa draw_action_icon para fallback de fonte */
     if (hover || press)
-        draw_symbol(cr, sym, x, h, 0xFF,0xFF,0xFF);
+        draw_action_icon(cr, sym, x, h, 0xFF,0xFF,0xFF);
+    else if (focused)
+        draw_action_icon(cr, sym, x, h, 0x99,0x99,0x99);
     else
-        draw_symbol(cr, sym, x, h, 0x77,0x77,0x77);
+        draw_action_icon(cr, sym, x, h, 0x55,0x55,0x55);
 }
 
 /* =========================================================
@@ -225,16 +230,16 @@ static void render_titlebar(ObFrame *self)
     /* Fallback se frame.c não inicializou as posições */
     double x = (self->close_x > 0) ? self->close_x : 12.0;
 
-    draw_button(cr, x, h, "✕",
+    draw_button(cr, x, h, "Ã",  /* × U+00D7 — em toda fonte */
                 self->close_hover, self->close_press, TRUE, focused);
 
     x = (self->iconify_x > 0) ? self->iconify_x : 50.0;
-    draw_button(cr, x, h, "─",
+    draw_button(cr, x, h, "â",  /* — U+2014 em dash */
                 self->iconify_hover, self->iconify_press, FALSE, focused);
 
     x = (self->max_x > 0) ? self->max_x : 88.0;
     gboolean is_max = self->client->max_vert || self->client->max_horz;
-    draw_button(cr, x, h, is_max ? "❐" : "◻",
+    draw_button(cr, x, h, is_max ? "â£" : "â¡",  /* ▣ / □ */
                 self->max_hover, self->max_press, FALSE, focused);
 
     /* Posição após o último botão */
