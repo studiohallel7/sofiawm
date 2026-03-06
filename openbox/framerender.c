@@ -33,7 +33,7 @@
 #define SOFIA_SEP_PAD    10
 #define SOFIA_FONT       "Inter Semi-Bold 10"
 #define SOFIA_BTN_FONT   "Inter 14"
-#define SOFIA_SYM_FONT   "Noto Sans Symbols2, Noto Color Emoji, Symbola, Inter 14"
+#define SOFIA_SYM_FONT   "Inter 14"
 
 /* Helper: seta cor Cairo a partir de componentes RGB 0-255 */
 static inline void set_rgb(cairo_t *cr, int r, int g, int b)
@@ -82,6 +82,53 @@ static void draw_symbol(cairo_t    *cr,
 /* =========================================================
  * BOTÃO COMPLETO (fundo + símbolo)
  * ========================================================= */
+/* Desenha ícone de ação — com fallback se glyph não disponível */
+static void draw_action_icon(cairo_t    *cr,
+                              const char *sym,
+                              double      btn_x,
+                              double      btn_h,
+                              int         r, int g, int b)
+{
+    /* Tenta com sequência de fontes que cobrem símbolos */
+    const char *fonts[] = {
+        "Noto Sans Symbols2 12",
+        "Symbola 12",
+        "DejaVu Sans 12",
+        "Inter 14",
+        NULL
+    };
+    PangoLayout *lo = pango_cairo_create_layout(cr);
+    for (int i = 0; fonts[i]; i++) {
+        PangoFontDescription *fd = pango_font_description_from_string(fonts[i]);
+        pango_layout_set_font_description(lo, fd);
+        pango_layout_set_text(lo, sym, -1);
+        pango_font_description_free(fd);
+        int tw, th;
+        pango_layout_get_pixel_size(lo, &tw, &th);
+        if (tw > 2) { /* glyph foi renderizado */
+            set_rgb(cr, r, g, b);
+            cairo_move_to(cr,
+                btn_x + (SOFIA_BTN_W - tw) / 2.0,
+                (btn_h - th) / 2.0);
+            pango_cairo_show_layout(cr, lo);
+            g_object_unref(lo);
+            return;
+        }
+    }
+    g_object_unref(lo);
+    /* Último fallback: cairo_show_text */
+    set_rgb(cr, r, g, b);
+    cairo_select_font_face(cr, "sans-serif",
+        CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, 11.0);
+    cairo_text_extents_t te;
+    cairo_text_extents(cr, sym, &te);
+    cairo_move_to(cr,
+        btn_x + (SOFIA_BTN_W - te.width) / 2.0 - te.x_bearing,
+        btn_h / 2.0 - te.y_bearing / 2.0);
+    cairo_show_text(cr, sym);
+}
+
 static void draw_button(cairo_t    *cr,
                          double      x,
                          double      h,
@@ -209,16 +256,18 @@ static void render_titlebar(ObFrame *self)
     /* 4. Botões de ação — dinâmicos via AppletManager */
     if (focused && sofia_current_actions.count > 0) {
         for (int k = 0; k < sofia_current_actions.count && k < 4; k++) {
-            draw_button(cr, x, h, sofia_current_actions.actions[k].icon,
-                        FALSE, FALSE, FALSE, focused);
+            /* fundo do botão */
+            fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x18,0x18,0x18);
+            draw_action_icon(cr, sofia_current_actions.actions[k].icon,
+                             x, h, 0x99,0x99,0x99);
             x += SOFIA_BTN_W;
         }
     } else if (!focused) {
-        /* unfocused: ações neutras apagadas */
-        const char *neutral[] = { "🗁", "＋", "✎", "↻" };
+        /* unfocused: ícones neutros */
+        const char *neutral[] = { "▷", "+", "~", "↻" };
         for (int k = 0; k < 4; k++) {
-            draw_button(cr, x, h, neutral[k],
-                        FALSE, FALSE, FALSE, FALSE);
+            fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x12,0x12,0x12);
+            draw_symbol(cr, neutral[k], x, h, 0x44,0x44,0x44);
             x += SOFIA_BTN_W;
         }
     }
