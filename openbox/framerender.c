@@ -33,6 +33,7 @@
 #define SOFIA_SEP_PAD    10
 #define SOFIA_FONT       "Inter Semi-Bold 10"
 #define SOFIA_BTN_FONT   "Inter 14"
+#define SOFIA_SYM_FONT   "Noto Sans Symbols2, Noto Color Emoji, Symbola, Inter 14"
 
 /* Helper: seta cor Cairo a partir de componentes RGB 0-255 */
 static inline void set_rgb(cairo_t *cr, int r, int g, int b)
@@ -62,7 +63,7 @@ static void draw_symbol(cairo_t    *cr,
                          int         r, int g, int b)
 {
     PangoLayout *lo = pango_cairo_create_layout(cr);
-    PangoFontDescription *fd = pango_font_description_from_string(SOFIA_BTN_FONT);
+    PangoFontDescription *fd = pango_font_description_from_string(SOFIA_SYM_FONT);
     pango_layout_set_font_description(lo, fd);
     pango_layout_set_text(lo, sym, -1);
     pango_font_description_free(fd);
