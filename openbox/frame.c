@@ -1146,6 +1146,8 @@ static void layout_title(ObFrame *self){
     XMapWindow(obt_display, self->close);
     XMoveWindow(obt_display, self->close, self->close_x, y_offset);
     XResizeWindow(obt_display, self->close, btn_width, 30);
+    XSetWindowBackgroundPixmap(obt_display, self->close, ParentRelative);
+    XClearWindow(obt_display, self->close);
     x += btn_width + espacamento;
 
     /* 2. Minimizar */
@@ -1153,6 +1155,8 @@ static void layout_title(ObFrame *self){
     XMapWindow(obt_display, self->iconify);
     XMoveWindow(obt_display, self->iconify, self->iconify_x, y_offset);
     XResizeWindow(obt_display, self->iconify, btn_width, 30);
+    XSetWindowBackgroundPixmap(obt_display, self->iconify, ParentRelative);
+    XClearWindow(obt_display, self->iconify);
     x += btn_width + espacamento;
 
     /* 3. Maximizar */
@@ -1160,6 +1164,8 @@ static void layout_title(ObFrame *self){
     XMapWindow(obt_display, self->max);
     XMoveWindow(obt_display, self->max, self->max_x, y_offset);
     XResizeWindow(obt_display, self->max, btn_width, 30);
+    XSetWindowBackgroundPixmap(obt_display, self->max, ParentRelative);
+    XClearWindow(obt_display, self->max);
     x += btn_width + espacamento;
 
     /* 4. Nome da Janela (Label) empurrado para a Direita */
