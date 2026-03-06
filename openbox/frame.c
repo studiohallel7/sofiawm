@@ -1141,31 +1141,26 @@ static void layout_title(ObFrame *self){
     gint espacamento = 6;     /* Espaçamento entre os botões */
     gint y_offset = 5;        /* Centralizar botões na barra de 40px */
 
-    /* 1. Fechar (Colado na esquerda) */
+    /* 1. Fechar — subwindow invisível (Y fora da titlebar) para não cobrir Cairo
+     * close_x registra a posição real para Cairo e event.c */
     self->close_x = x;
     XMapWindow(obt_display, self->close);
-    XMoveWindow(obt_display, self->close, self->close_x, y_offset);
+    XMoveWindow(obt_display, self->close, self->close_x, -100);
     XResizeWindow(obt_display, self->close, btn_width, 30);
-    XSetWindowBackgroundPixmap(obt_display, self->close, ParentRelative);
-    XClearWindow(obt_display, self->close);
     x += btn_width + espacamento;
 
     /* 2. Minimizar */
     self->iconify_x = x;
     XMapWindow(obt_display, self->iconify);
-    XMoveWindow(obt_display, self->iconify, self->iconify_x, y_offset);
+    XMoveWindow(obt_display, self->iconify, self->iconify_x, -100);
     XResizeWindow(obt_display, self->iconify, btn_width, 30);
-    XSetWindowBackgroundPixmap(obt_display, self->iconify, ParentRelative);
-    XClearWindow(obt_display, self->iconify);
     x += btn_width + espacamento;
 
     /* 3. Maximizar */
     self->max_x = x;
     XMapWindow(obt_display, self->max);
-    XMoveWindow(obt_display, self->max, self->max_x, y_offset);
+    XMoveWindow(obt_display, self->max, self->max_x, -100);
     XResizeWindow(obt_display, self->max, btn_width, 30);
-    XSetWindowBackgroundPixmap(obt_display, self->max, ParentRelative);
-    XClearWindow(obt_display, self->max);
     x += btn_width + espacamento;
 
     /* 4. Nome da Janela (Label) empurrado para a Direita */
