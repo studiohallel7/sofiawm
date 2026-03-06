@@ -305,7 +305,7 @@ static void render_borders(ObFrame *self)
 {
     gulong px_border  = 0x1E1E1E;
     gulong px_bg      = 0x121212;
-    gulong px_bottom  = self->focused ? 0xD35400 : 0x222222;
+    gulong px_bottom  = self->focused ? 0x1E1E1E : 0x1E1E1E;
 
     XSetWindowBackground(obt_display, self->titlebottom, px_bottom);
     XClearWindow(obt_display,         self->titlebottom);
