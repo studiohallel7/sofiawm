@@ -113,6 +113,11 @@ static int parse_actions(const char         *json,
                           SofiaWindowActions *out)
 {
     out->count = 0;
+    g_debug("[SOFIA_PARSE] json len=%d, buscando actions", (int)strlen(json));
+    /* Procura manualmente caractere por caractere */
+    const char *dbg = strstr(json, "actions");
+    g_debug("[SOFIA_PARSE] strstr(actions)=%s", dbg ? "ENCONTRADO" : "NULL");
+    if (dbg) g_debug("[SOFIA_PARSE] contexto: %.20s", dbg);
 
     /* Extrai context_file e mimetype */
     json_get_string(json, "context_file", out->context_file,
@@ -136,6 +141,7 @@ static int parse_actions(const char         *json,
 
     g_debug("[SOFIA_PARSE] iniciando parse, primeiro char: '%c' (0x%02x)",
             *arr ? *arr : '?', (unsigned char)(*arr ? *arr : 0));
+    g_debug("[SOFIA_PARSE] primeiros 40 bytes do arr: %.40s", arr);
 
     while (*arr && *arr != ']' && out->count < SOFIA_MAX_ACTIONS) {
         /* Pula espaços/vírgulas até { */
@@ -282,6 +288,8 @@ gboolean sofia_actions_query(const char         *wm_class,
         return FALSE;
     }
 
+    g_debug("[SOFIA_ACTIONS] Resposta total=%d bytes", total);
+    g_debug("[SOFIA_ACTIONS] Ultimos 30 bytes: %.30s", buf + (total > 30 ? total-30 : 0));
     g_debug("[SOFIA_ACTIONS] Resposta: %s", buf);
 
     /* Verifica status */
