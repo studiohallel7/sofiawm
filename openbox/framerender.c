@@ -91,12 +91,9 @@ static void draw_action_icon(cairo_t    *cr,
 {
     /* Tenta com sequência de fontes que cobrem símbolos */
     const char *fonts[] = {
+        "Inter 14",
         "DejaVu Sans 12",
         "Noto Sans 12",
-        "Noto Sans Symbols2 12",
-        "Liberation Sans 12",
-        "FreeSans 12",
-        "Inter 14",
         "sans 12",
         NULL
     };
@@ -153,13 +150,11 @@ static void draw_button(cairo_t    *cr,
     else
         fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x12,0x12,0x12);
 
-    /* Símbolo — usa draw_action_icon para fallback de fonte */
+    /* Símbolo */
     if (hover || press)
-        draw_action_icon(cr, sym, x, h, 0xFF,0xFF,0xFF);
-    else if (focused)
-        draw_action_icon(cr, sym, x, h, 0x99,0x99,0x99);
+        draw_symbol(cr, sym, x, h, 0xFF,0xFF,0xFF);
     else
-        draw_action_icon(cr, sym, x, h, 0x55,0x55,0x55);
+        draw_symbol(cr, sym, x, h, 0x77,0x77,0x77);
 }
 
 /* =========================================================
@@ -230,16 +225,16 @@ static void render_titlebar(ObFrame *self)
     /* Fallback se frame.c não inicializou as posições */
     double x = (self->close_x > 0) ? self->close_x : 12.0;
 
-    draw_button(cr, x, h, "Ã",  /* × U+00D7 — em toda fonte */
+    draw_button(cr, x, h, "✕",
                 self->close_hover, self->close_press, TRUE, focused);
 
     x = (self->iconify_x > 0) ? self->iconify_x : 50.0;
-    draw_button(cr, x, h, "â",  /* — U+2014 em dash */
+    draw_button(cr, x, h, "─",
                 self->iconify_hover, self->iconify_press, FALSE, focused);
 
     x = (self->max_x > 0) ? self->max_x : 88.0;
     gboolean is_max = self->client->max_vert || self->client->max_horz;
-    draw_button(cr, x, h, is_max ? "â£" : "â¡",  /* ▣ / □ */
+    draw_button(cr, x, h, is_max ? "❐" : "◻",
                 self->max_hover, self->max_press, FALSE, focused);
 
     /* Posição após o último botão */
@@ -261,8 +256,6 @@ static void render_titlebar(ObFrame *self)
     /* 4. Botões de ação — dinâmicos via AppletManager */
     if (focused && sofia_current_actions.count > 0) {
         for (int k = 0; k < sofia_current_actions.count && k < 4; k++) {
-            /* fundo do botão */
-            fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x18,0x18,0x18);
             draw_action_icon(cr, sofia_current_actions.actions[k].icon,
                              x, h, 0x99,0x99,0x99);
             x += SOFIA_BTN_W;
@@ -271,7 +264,6 @@ static void render_titlebar(ObFrame *self)
         /* unfocused: ícones neutros */
         const char *neutral[] = { "▷", "+", "~", "↻" };
         for (int k = 0; k < 4; k++) {
-            fill_rect(cr, x, 0, SOFIA_BTN_W, h, 0x12,0x12,0x12);
             draw_symbol(cr, neutral[k], x, h, 0x44,0x44,0x44);
             x += SOFIA_BTN_W;
         }
@@ -345,17 +337,25 @@ static void hide_legacy_subwindows(ObFrame *self)
      * Tornamos transparentes para o Cairo pintar por baixo,
      * mas elas precisam existir para capturar eventos de mouse. */
 
-    /* Torna os botões transparentes — sem background */
-    if (self->close_on)
+    /* Botões: fundo transparente (ParentRelative) para Cairo aparecer por baixo.
+     * XClearWindow força repaint imediato, senão o conteúdo antigo persiste. */
+    if (self->close_on) {
         XSetWindowBackgroundPixmap(obt_display, self->close, ParentRelative);
-    if (self->max_on)
+        XClearWindow(obt_display, self->close);
+    }
+    if (self->max_on) {
         XSetWindowBackgroundPixmap(obt_display, self->max, ParentRelative);
-    if (self->iconify_on)
+        XClearWindow(obt_display, self->max);
+    }
+    if (self->iconify_on) {
         XSetWindowBackgroundPixmap(obt_display, self->iconify, ParentRelative);
-
-    /* Label também transparente — Cairo desenha o título */
-    if (self->label_on)
+        XClearWindow(obt_display, self->iconify);
+    }
+    /* Label transparente — Cairo desenha o título */
+    if (self->label_on) {
         XSetWindowBackgroundPixmap(obt_display, self->label, ParentRelative);
+        XClearWindow(obt_display, self->label);
+    }
 
     /* Estes sim podem ser desmapados — não usamos */
     if (self->desk_on)    XUnmapWindow(obt_display, self->desk);
