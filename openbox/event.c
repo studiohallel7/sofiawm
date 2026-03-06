@@ -21,11 +21,6 @@
 #include "debug.h"
 #include "window.h"
 #include "openbox.h"
-#include "sofia_actions.h"
-#include "framerender.h"
-
-/* SofiaWM: estado global definido em sofia_actions.c */
-extern SofiaWindowActions sofia_current_actions;
 #include "dock.h"
 #include "actions.h"
 #include "client.h"
@@ -44,6 +39,7 @@ extern SofiaWindowActions sofia_current_actions;
 #include "group.h"
 #include "stacking.h"
 #include "ping.h"
+#include "sofia_actions.h"
 #include "obt/display.h"
 #include "obt/xqueue.h"
 #include "obt/prop.h"
@@ -586,16 +582,6 @@ static void event_process(const XEvent *ec, gpointer data)
             focus_set_client(client);
             client_calc_layer(client);
             client_bring_helper_windows(client);
-
-            /* SofiaWM: consulta AppletManager pelas ações contextuais */
-            {
-                /* WM_CLASS via XGetClassHint — usa name como fallback */
-                const char *wm_class = client->name ? client->name : "";
-                const char *title = client->title ? client->title : "";
-                sofia_actions_query(wm_class, title, 0, &sofia_current_actions);
-                client->frame->need_render = TRUE;
-                framerender_frame(client->frame);
-            }
         }
 
         waiting_for_focusin = FALSE;
@@ -634,13 +620,8 @@ static void event_process(const XEvent *ec, gpointer data)
             focus_set_client(NULL);
         }
 
-        if (client && client != focus_client) {
+        if (client && client != focus_client)
             frame_adjust_focus(client->frame, FALSE);
-            /* SofiaWM: limpa ações contextuais ao perder foco */
-            sofia_actions_clear(&sofia_current_actions);
-            client->frame->need_render = TRUE;
-            framerender_frame(client->frame);
-        }
     }
     else if (client)
         event_handle_client(client, e);
@@ -1028,6 +1009,27 @@ static void event_handle_client(ObClient *client, XEvent *e)
             if ((e->type == ButtonRelease || CLIENT_CONTEXT(con, client)) &&
                 e->xbutton.button == pb)
                 pb = 0, px = py = -1, pcon = OB_FRAME_CONTEXT_NONE;
+
+            /* SofiaWM: detectar clique nos ícones de ação contextuais
+             * Os ícones ficam na title window após max_x+32+6
+             * Cada ícone tem SOFIA_BTN_W=32px de largura */
+            if (e->type == ButtonRelease &&
+                e->xbutton.button == 1 &&
+                con == OB_FRAME_CONTEXT_TITLEBAR &&
+                sofia_current_actions.count > 0)
+            {
+                ObFrame *fr = client->frame;
+                gint action_start = (fr->max_x > 0 ? fr->max_x : 88) + 32 + 6 + 10 + 1 + 10;
+                gint click_x = px; /* coordenada do press na title window */
+                if (click_x >= action_start) {
+                    gint idx = (click_x - action_start) / 32;
+                    if (idx >= 0 && idx < sofia_current_actions.count) {
+                        ob_debug("[SOFIA] Clique ação %d: %s",
+                                 idx, sofia_current_actions.actions[idx].id);
+                        sofia_actions_execute(&sofia_current_actions, idx);
+                    }
+                }
+            }
 
             but = context_to_button(client->frame, con, TRUE);
             if (but) {
