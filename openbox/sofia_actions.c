@@ -42,10 +42,16 @@ static int json_get_string(const char *json,
                             int         out_size)
 {
     char search[128];
-    snprintf(search, sizeof(search), "\"%s\":\"", key);
+    /* Busca "key": com ou sem espaço antes do valor */
+    snprintf(search, sizeof(search), "\"%s\":", key);
     const char *p = strstr(json, search);
     if (!p) return 0;
     p += strlen(search);
+    /* Pula espaços opcionais */
+    while (*p == ' ' || *p == '\t') p++;
+    /* Agora deve estar numa aspa */
+    if (*p != '"') return 0;
+    p++; /* pula a aspa de abertura */
 
     /* Copia até aspas não-escapadas, decodificando \uXXXX simples */
     int len = 0;
