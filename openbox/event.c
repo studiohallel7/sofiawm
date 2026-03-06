@@ -582,6 +582,20 @@ static void event_process(const XEvent *ec, gpointer data)
             focus_set_client(client);
             client_calc_layer(client);
             client_bring_helper_windows(client);
+
+            /* SofiaWM: consultar AppletManager pelas ações contextuais */
+            {
+                const char *wm_class = client->name ? client->name : "";
+                const char *title    = client->title ? client->title : "";
+                int         pid      = (int)client->pid;
+                sofia_actions_query(wm_class, title, pid,
+                                    &sofia_current_actions);
+                ob_debug("[SOFIA] foco em '%s' → %d ações",
+                         wm_class, sofia_current_actions.count);
+                /* Força re-render da titlebar para exibir os novos ícones */
+                client->frame->need_render = TRUE;
+                frame_adjust_state(client->frame);
+            }
         }
 
         waiting_for_focusin = FALSE;
