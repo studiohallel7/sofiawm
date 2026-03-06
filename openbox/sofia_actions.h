@@ -45,4 +45,8 @@ void sofia_actions_execute(const SofiaWindowActions *actions, int index);
 /* Limpa a struct de ações */
 void sofia_actions_clear(SofiaWindowActions *actions);
 
+/* Variável global com as ações da janela atualmente focada.
+ * Definida em sofia_actions.c, lida pelo framerender.c */
+extern SofiaWindowActions sofia_current_actions;
+
 #endif /* __sofia_actions_h */
