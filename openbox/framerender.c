@@ -174,16 +174,17 @@ static void render_titlebar(ObFrame *self)
     /* 2. Botões de janela — posições lidas do frame (sincronizadas com frame.c)
      * frame.c usa: x=12, btn_width=32, espacamento=6
      * close=12, iconify=50, max=88 */
-    double x = self->close_x;
+    /* Fallback se frame.c não inicializou as posições */
+    double x = (self->close_x > 0) ? self->close_x : 12.0;
 
     draw_button(cr, x, h, "✕",
                 self->close_hover, self->close_press, TRUE, focused);
 
-    x = self->iconify_x;
+    x = (self->iconify_x > 0) ? self->iconify_x : 50.0;
     draw_button(cr, x, h, "─",
                 self->iconify_hover, self->iconify_press, FALSE, focused);
 
-    x = self->max_x;
+    x = (self->max_x > 0) ? self->max_x : 88.0;
     gboolean is_max = self->client->max_vert || self->client->max_horz;
     draw_button(cr, x, h, is_max ? "❐" : "◻",
                 self->max_hover, self->max_press, FALSE, focused);
