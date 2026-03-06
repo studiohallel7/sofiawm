@@ -121,13 +121,17 @@ static int parse_actions(const char         *json,
                     sizeof(out->mimetype));
 
     /* Encontra o array actions */
-    const char *arr = strstr(json, "\"actions\":[");
+    /* Busca "actions": [ com ou sem espaço antes do [ */
+    const char *arr = strstr(json, "\"actions\"");
     if (!arr) {
         g_debug("[SOFIA_PARSE] array actions nao encontrado");
         return 0;
     }
     arr = strchr(arr, '[');
-    if (!arr) return 0;
+    if (!arr) {
+        g_debug("[SOFIA_PARSE] '[' nao encontrado apos actions");
+        return 0;
+    }
     arr++; /* pula o '[' */
 
     g_debug("[SOFIA_PARSE] iniciando parse, primeiro char: '%c' (0x%02x)",
