@@ -191,6 +191,46 @@ static void draw_title(cairo_t    *cr,
     g_object_unref(lo);
 }
 
+/* Pinta um botão de janela diretamente na sua subwindow X11 */
+static void render_button_window(Display    *dpy,
+                                  Window      win,
+                                  int         btn_w,
+                                  int         btn_h,
+                                  const char *sym,
+                                  gboolean    hover,
+                                  gboolean    press,
+                                  gboolean    is_close,
+                                  gboolean    focused)
+{
+    cairo_surface_t *s = cairo_xlib_surface_create(
+        dpy, win,
+        DefaultVisual(dpy, DefaultScreen(dpy)),
+        btn_w, btn_h);
+    if (cairo_surface_status(s) != CAIRO_STATUS_SUCCESS) {
+        cairo_surface_destroy(s); return;
+    }
+    cairo_t *cr = cairo_create(s);
+
+    /* Fundo */
+    if (press)
+        fill_rect(cr, 0, 0, btn_w, btn_h, 0x33,0x33,0x33);
+    else if (hover && is_close)
+        fill_rect(cr, 0, 0, btn_w, btn_h, 0xC4,0x2B,0x1C);
+    else if (hover)
+        fill_rect(cr, 0, 0, btn_w, btn_h, 0x2A,0x2A,0x2A);
+    else if (focused)
+        fill_rect(cr, 0, 0, btn_w, btn_h, 0x18,0x18,0x18);
+    else
+        fill_rect(cr, 0, 0, btn_w, btn_h, 0x12,0x12,0x12);
+
+    /* Símbolo centralizado */
+    int fg = (hover || press) ? 0xFF : (focused ? 0x99 : 0x55);
+    draw_action_icon(cr, sym, 0, btn_h, fg, fg, fg);
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(s);
+}
+
 /* =========================================================
  * RENDER DA TITLEBAR — Cairo direto na title Window
  * ========================================================= */
@@ -219,26 +259,22 @@ static void render_titlebar(ObFrame *self)
     else
         fill_rect(cr, 0, 0, w, h, 0x12,0x12,0x12);
 
-    /* 2. Botões de janela — posições lidas do frame (sincronizadas com frame.c)
-     * frame.c usa: x=12, btn_width=32, espacamento=6
-     * close=12, iconify=50, max=88 */
-    /* Fallback se frame.c não inicializou as posições */
-    double x = (self->close_x > 0) ? self->close_x : 12.0;
+    /* 2. Botões de janela — Cairo pinta direto nas subwindows X11
+     * Assim o conteúdo está NA subwindow, não sob ela */
+    if (self->close_on)
+        render_button_window(dpy, self->close, 32, 30, "✕",
+            self->close_hover, self->close_press, TRUE, focused);
+    if (self->iconify_on)
+        render_button_window(dpy, self->iconify, 32, 30, "─",
+            self->iconify_hover, self->iconify_press, FALSE, focused);
+    if (self->max_on) {
+        gboolean is_max = self->client->max_vert || self->client->max_horz;
+        render_button_window(dpy, self->max, 32, 30, is_max ? "❐" : "◻",
+            self->max_hover, self->max_press, FALSE, focused);
+    }
 
-    draw_button(cr, x, h, "✕",
-                self->close_hover, self->close_press, TRUE, focused);
-
-    x = (self->iconify_x > 0) ? self->iconify_x : 50.0;
-    draw_button(cr, x, h, "─",
-                self->iconify_hover, self->iconify_press, FALSE, focused);
-
-    x = (self->max_x > 0) ? self->max_x : 88.0;
-    gboolean is_max = self->client->max_vert || self->client->max_horz;
-    draw_button(cr, x, h, is_max ? "❐" : "◻",
-                self->max_hover, self->max_press, FALSE, focused);
-
-    /* Posição após o último botão */
-    x = self->max_x + 32 + 6;
+    /* Posição após o último botão para os ícones de ação */
+    double x = (self->max_x > 0) ? self->max_x + 32 + 6 : 126.0 + 6;
 
     /* 3. Separador vertical (só focused) */
     if (focused) {
