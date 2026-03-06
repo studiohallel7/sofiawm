@@ -18,6 +18,7 @@
 #include "frame.h"
 #include "openbox.h"
 #include "client.h"
+#include "sofia_actions.h"
 
 #include <cairo/cairo.h>
 #include <cairo/cairo-xlib.h>
@@ -204,7 +205,6 @@ static void render_titlebar(ObFrame *self)
     }
 
     /* 4. Botões de ação — dinâmicos via AppletManager */
-    extern SofiaWindowActions sofia_current_actions;
     if (focused && sofia_current_actions.count > 0) {
         for (int k = 0; k < sofia_current_actions.count && k < 4; k++) {
             draw_button(cr, x, h, sofia_current_actions.actions[k].icon,
