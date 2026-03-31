@@ -592,9 +592,13 @@ static void event_process(const XEvent *ec, gpointer data)
                                     &sofia_current_actions);
                 ob_debug("[SOFIA] foco em '%s' → %d ações",
                          wm_class, sofia_current_actions.count);
-                /* Força re-render da titlebar para exibir os novos ícones */
-                client->frame->need_render = TRUE;
-                frame_adjust_state(client->frame);
+                
+                /* Força re-render apenas se a janela não estiver em fullscreen 
+                   e possuir uma barra de título (decorations) */
+                if (!client->fullscreen && (client->decorations & OB_FRAME_DECOR_TITLEBAR)) {
+                    client->frame->need_render = TRUE;
+                    frame_adjust_state(client->frame);
+                }
             }
         }
 
@@ -1275,7 +1279,7 @@ static void event_handle_client(ObClient *client, XEvent *e)
             (e->xconfigurerequest.value_mask & CWWidth) ||
             (e->xconfigurerequest.value_mask & CWHeight))
         {
-            /* don't allow clients to move shaded windows (fvwm does this)
+            /* don't allow clients to move shaded windows (fvwm do this)
             */
             if (e->xconfigurerequest.value_mask & CWX) {
                 if (!client->shaded)
@@ -2359,4 +2363,6 @@ void event_update_user_time(void)
 void event_reset_user_time(void)
 {
     event_last_user_time = CurrentTime;
+}
+
 }
