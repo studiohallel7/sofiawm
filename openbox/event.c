@@ -2365,4 +2365,4 @@ void event_reset_user_time(void)
     event_last_user_time = CurrentTime;
 }
 
-}
+
