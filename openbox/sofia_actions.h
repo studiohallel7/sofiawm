@@ -1,52 +1,33 @@
-/* sofia_actions.h — SofiaWM Ações Contextuais
- *
- * Comunica com o AppletManager via Unix socket para obter
- * as ações disponíveis para a janela focada.
- */
-
+/* -*- indent-tabs-mode: nil; tab-width: 4; c-basic-offset: 4; -*- */
 #ifndef __sofia_actions_h
 #define __sofia_actions_h
 
 #include <glib.h>
+#include <X11/Xlib.h>
 
-#define SOFIA_MAX_ACTIONS     4
-#define SOFIA_ICON_MAX       16   /* bytes UTF-8 */
-#define SOFIA_LABEL_MAX      64
-#define SOFIA_CMD_MAX      1024
-#define SOFIA_ID_MAX         64
+#define SOFIA_MAX_ACTIONS 10
+#define SOFIA_CMD_MAX 256
 
-/* Uma ação contextual retornada pelo AppletManager */
-typedef struct {
-    char icon   [SOFIA_ICON_MAX];
-    char id     [SOFIA_ID_MAX];
-    char label  [SOFIA_LABEL_MAX];
+typedef struct _SofiaAction {
+    char icon[32];
+    char id[64];
+    char label[64];
     char command[SOFIA_CMD_MAX];
 } SofiaAction;
 
-/* Estado das ações da janela atual */
-typedef struct {
+typedef struct _SofiaWindowActions {
+    int count;
+    char context_file[512];
+    char mimetype[64];
     SofiaAction actions[SOFIA_MAX_ACTIONS];
-    int         count;
-    char        context_file[512];
-    char        mimetype[128];
 } SofiaWindowActions;
 
-/* Notifica o AppletManager sobre a janela focada.
- * Preenche 'out' com as ações disponíveis.
- * Retorna TRUE se obteve resposta, FALSE se socket falhou. */
-gboolean sofia_actions_query(const char       *wm_class,
-                              const char       *title,
-                              int               pid,
-                              SofiaWindowActions *out);
-
-/* Executa uma ação pelo índice (dispara o command em background) */
-void sofia_actions_execute(const SofiaWindowActions *actions, int index);
-
-/* Limpa a struct de ações */
-void sofia_actions_clear(SofiaWindowActions *actions);
-
-/* Variável global com as ações da janela atualmente focada.
- * Definida em sofia_actions.c, lida pelo framerender.c */
 extern SofiaWindowActions sofia_current_actions;
 
-#endif /* __sofia_actions_h */
+/* Função atualizada para usar X11 Properties em vez de Socket */
+gboolean sofia_actions_update(Window win, SofiaWindowActions *out);
+
+void sofia_actions_execute(const SofiaWindowActions *actions, int index);
+void sofia_actions_clear(SofiaWindowActions *actions);
+
+#endif
