@@ -1,4 +1,4 @@
-/* sofia_actions.c — SofiaWM Ações Contextuais via X11 Properties */
+/* sofia_actions.c — SofiaWM Ações Contextuais via X11 Properties (Com Cache) */
 
 #include "sofia_actions.h"
 #include "obt/display.h"
@@ -11,6 +11,18 @@
 #include <X11/Xatom.h>
 
 SofiaWindowActions sofia_current_actions = { 0 };
+
+/* =========================================================
+ * CACHE DO ATOM (Evita travamentos e logoffs no X11)
+ * ========================================================= */
+static Atom cached_sofia_atom = None;
+
+Atom sofia_actions_get_atom(void) {
+    if (cached_sofia_atom == None && obt_display != NULL) {
+        cached_sofia_atom = XInternAtom(obt_display, "_SOFIA_WINDOW_ACTIONS", False);
+    }
+    return cached_sofia_atom;
+}
 
 /* =========================================================
  * HELPERS JSON MÍNIMO
@@ -116,13 +128,15 @@ static int parse_actions(const char *json, SofiaWindowActions *out) {
 }
 
 /* =========================================================
- * LER AÇÕES DO X11 PROPERTY
+ * LER AÇÕES DO X11 PROPERTY (Agora com Cache Rápido)
  * ========================================================= */
 gboolean sofia_actions_update(Window win, SofiaWindowActions *out) {
     sofia_actions_clear(out);
     if (!win || win == None) return FALSE;
 
-    Atom prop = XInternAtom(obt_display, "_SOFIA_WINDOW_ACTIONS", False);
+    Atom prop = sofia_actions_get_atom();
+    if (prop == None) return FALSE;
+
     Atom type_ret;
     int format_ret;
     unsigned long nitems_ret, bytes_after_ret;
