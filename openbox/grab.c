@@ -99,6 +99,7 @@ gboolean grab_keyboard_full(gboolean grab)
     } else if (kgrabs > 0) {
         if (--kgrabs == 0) {
             XUngrabKeyboard(obt_display, ungrab_time());
+            XSync(obt_display, FALSE); /* Correção: Força o X a processar o ungrab agora! */
         }
         ret = TRUE;
     }
@@ -239,6 +240,7 @@ void ungrab_passive_key(void)
     if (passive_count) {
         /* kill our passive grab */
         XUngrabKeyboard(obt_display, event_time());
+        XSync(obt_display, FALSE); /* Correção: Força o X a processar o ungrab agora! */
         passive_count = 0;
     }
 }
