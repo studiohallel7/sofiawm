@@ -30,4 +30,7 @@ gboolean sofia_actions_update(Window win, SofiaWindowActions *out);
 void sofia_actions_execute(const SofiaWindowActions *actions, int index);
 void sofia_actions_clear(SofiaWindowActions *actions);
 
+/* Retorna o Atom em cache para evitar gargalo e logoff no X11 */
+Atom sofia_actions_get_atom(void);
+
 #endif
