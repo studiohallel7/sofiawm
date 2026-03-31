@@ -583,18 +583,10 @@ static void event_process(const XEvent *ec, gpointer data)
             client_calc_layer(client);
             client_bring_helper_windows(client);
 
-            /* SofiaWM: consultar AppletManager pelas ações contextuais */
+            /* SofiaWM: Lemos as ações contextuais diretamente da propriedade da janela */
             {
-                const char *wm_class = client->name ? client->name : "";
-                const char *title    = client->title ? client->title : "";
-                int         pid      = (int)client->pid;
-                sofia_actions_query(wm_class, title, pid,
-                                    &sofia_current_actions);
-                ob_debug("[SOFIA] foco em '%s' → %d ações",
-                         wm_class, sofia_current_actions.count);
+                sofia_actions_update(client->window, &sofia_current_actions);
                 
-                /* Força re-render apenas se a janela não estiver em fullscreen 
-                   e possuir uma barra de título (decorations) */
                 if (!client->fullscreen && (client->decorations & OB_FRAME_DECOR_TITLEBAR)) {
                     client->frame->need_render = TRUE;
                     frame_adjust_state(client->frame);
@@ -1724,6 +1716,16 @@ static void event_handle_client(ObClient *client, XEvent *e)
         else if (msgtype == OBT_PROP_ATOM(NET_WM_ICON)) {
             client_update_icons(client);
         }
+        else if (msgtype == XInternAtom(obt_display, "_SOFIA_WINDOW_ACTIONS", False)) {
+            /* SofiaWM: AppletManager colou um post-it novo na janela */
+            if (client == focus_client) {
+                sofia_actions_update(client->window, &sofia_current_actions);
+                if (!client->fullscreen && (client->decorations & OB_FRAME_DECOR_TITLEBAR)) {
+                    client->frame->need_render = TRUE;
+                    frame_adjust_state(client->frame);
+                }
+            }
+        }
         else if (msgtype == OBT_PROP_ATOM(NET_WM_ICON_GEOMETRY)) {
             client_update_icon_geometry(client);
         }
@@ -1943,7 +1945,7 @@ static gboolean event_handle_menu_input(XEvent *ev)
                     if (t == OB_MENU_ENTRY_TYPE_SUBMENU) {
                         /* make sure it is visible */
                         menu_frame_select(frame, frame->selected, TRUE);
-                        /* move focus to the child menu */
+                        /* move focus to the child menu menu */
                         menu_frame_select_next(frame->child);
                     }
                     else if (sym != XK_Right) {
@@ -2364,5 +2366,3 @@ void event_reset_user_time(void)
 {
     event_last_user_time = CurrentTime;
 }
-
-
