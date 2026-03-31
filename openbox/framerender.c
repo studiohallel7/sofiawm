@@ -3,15 +3,15 @@
  * framerender.c — SofiaWM Decorator
  * Cairo + Pango — zero dependência do obrender para a titlebar
  *
- *  FOCUSED:
- *  ┌──────────────────────────────────────────────────────┐ #1E1E1E
- *  │ [✕][─][◻] ┊ [🗁][＋][✎][↻]       Nome Da Janela  │ #181818
- *  ├──────────────────────────────────────────────────────┤ #D35400
+ * FOCUSED:
+ * ┌──────────────────────────────────────────────────────┐ #1E1E1E
+ * │ [✕][─][◻] ┊ [🗁][＋][✎][↻]       Nome Da Janela  │ #181818
+ * ├──────────────────────────────────────────────────────┤ #D35400
  *
- *  UNFOCUSED:
- *  ┌──────────────────────────────────────────────────────┐ #1E1E1E
- *  │ [✕][─][◻]   [🗁][＋][✎][↻]       Nome Da Janela  │ #121212
- *  ├──────────────────────────────────────────────────────┤ #222222
+ * UNFOCUSED:
+ * ┌──────────────────────────────────────────────────────┐ #1E1E1E
+ * │ [✕][─][◻]   [🗁][＋][✎][↻]       Nome Da Janela  │ #121212
+ * ├──────────────────────────────────────────────────────┤ #222222
  */
 
 #include "framerender.h"
@@ -182,7 +182,7 @@ static void draw_title(cairo_t    *cr,
     pango_layout_get_pixel_size(lo, &tw, &th);
 
     if (focused)
-        set_rgb(cr, 0x55,0x55,0x55);
+        set_rgb(cr, 0x5E,0x5E,0x66); /* CORRIGIDO: Cor do título #5e5e66 */
     else
         set_rgb(cr, 0x44,0x44,0x44);
 
@@ -253,7 +253,7 @@ static void render_titlebar(ObFrame *self)
     cairo_t *cr = cairo_create(surf);
     double h = SOFIA_TITLE_H;
 
-    /* 1. Fundo */
+    /* 1. Fundo da Titlebar completo */
     if (focused)
         fill_rect(cr, 0, 0, w, h, 0x18,0x18,0x18);
     else
@@ -304,29 +304,9 @@ static void render_titlebar(ObFrame *self)
             x += SOFIA_BTN_W;
         }
     }
-    /* focused sem ações: espaço vazio */
 
-    /* 5. Título à direita — limpa área antes para evitar glitch */
+    /* 5. Título à direita — CORRIGIDO: Desenha o texto direto sem redibujar blocos por baixo */
     if (self->client && self->client->title && self->client->title[0]) {
-        /* Mede o título para limpar a área exata */
-        PangoLayout *lo_m = pango_cairo_create_layout(cr);
-        PangoFontDescription *fd_m = pango_font_description_from_string(SOFIA_FONT);
-        pango_layout_set_font_description(lo_m, fd_m);
-        pango_layout_set_text(lo_m, self->client->title, -1);
-        PangoAttrList *attrs_m = pango_attr_list_new();
-        pango_attr_list_insert(attrs_m, pango_attr_letter_spacing_new(800));
-        pango_layout_set_attributes(lo_m, attrs_m);
-        pango_attr_list_unref(attrs_m);
-        pango_font_description_free(fd_m);
-        int tw_m, th_m;
-        pango_layout_get_pixel_size(lo_m, &tw_m, &th_m);
-        g_object_unref(lo_m);
-        /* Limpa área do título antes de desenhar */
-        double title_x = (double)(w - tw_m - 16);
-        if (focused)
-            fill_rect(cr, title_x - 4, 0, tw_m + 20, h, 0x18,0x18,0x18);
-        else
-            fill_rect(cr, title_x - 4, 0, tw_m + 20, h, 0x12,0x12,0x12);
         draw_title(cr, self->client->title, w, h, focused);
     }
 
@@ -373,8 +353,6 @@ static void hide_legacy_subwindows(ObFrame *self)
      * Tornamos transparentes para o Cairo pintar por baixo,
      * mas elas precisam existir para capturar eventos de mouse. */
 
-    /* Botões: fundo transparente (ParentRelative) para Cairo aparecer por baixo.
-     * XClearWindow força repaint imediato, senão o conteúdo antigo persiste. */
     if (self->close_on) {
         XSetWindowBackgroundPixmap(obt_display, self->close, ParentRelative);
         XClearWindow(obt_display, self->close);
@@ -387,12 +365,10 @@ static void hide_legacy_subwindows(ObFrame *self)
         XSetWindowBackgroundPixmap(obt_display, self->iconify, ParentRelative);
         XClearWindow(obt_display, self->iconify);
     }
-    /* Label transparente — Cairo desenha o título */
-    if (self->label_on) {
-        XSetWindowBackgroundPixmap(obt_display, self->label, ParentRelative);
-        XClearWindow(obt_display, self->label);
-    }
 
+    /* CORRIGIDO: Agora a label também é desmapada para parar de interferir no render do Cairo */
+    if (self->label_on)   XUnmapWindow(obt_display, self->label);
+    
     /* Estes sim podem ser desmapados — não usamos */
     if (self->desk_on)    XUnmapWindow(obt_display, self->desk);
     if (self->shade_on)   XUnmapWindow(obt_display, self->shade);
