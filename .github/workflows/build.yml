@@ -16,7 +16,7 @@ jobs:
         libx11-dev libxft-dev libxext-dev libxml2-dev libxrender-dev \
         libxrandr-dev libxcursor-dev libxinerama-dev libpango1.0-dev \
         libimlib2-dev libglib2.0-dev gettext autopoint intltool \
-        libcairo2-dev libpangocairo-1.0-0
+        libcairo2-dev libpangocairo-1.0-0 docbook-to-man
 
     - name: Configurar e Compilar
       run: |
